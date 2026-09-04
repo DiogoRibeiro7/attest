@@ -1,0 +1,318 @@
+---
+title: "The attest contract: what a certificate guarantees, and what it does not"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The attest contract: what a certificate guarantees, and what it does not}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+set.seed(42)
+```
+
+## The gap
+
+A fitted model in R is an object that will answer any question you put to it.
+Hand `predict()` a row from a population the model has never seen, a row with a
+feature ten standard deviations outside the training range, or a row that has
+drifted for six months since the model was fitted, and you get a number back.
+The number carries no indication that it should not be trusted.
+
+The validation you did lives somewhere else: in a script, a notebook, a slide,
+a memory. Nothing binds it to the object. The object cannot tell you whether it
+was ever checked for leakage, whether its probabilities were calibrated, or on
+what data the claim was made. By the time the model is in production, the
+evidence and the artefact have parted company.
+
+**attest** closes that gap by making the evidence part of the object and the
+refusal part of the prediction path.
+
+```{r}
+library(attest)
+```
+
+## The contract
+
+An `attested_model` upholds four clauses.
+
+1. **Checks run at fit time, not on request.** Leakage, calibration, coverage
+   and shift checks are executed by `attest_fit()` itself. There is no code
+   path that fits a model without running them.
+
+2. **Results are stored inside the object and bound by hash.** The certificate
+   records every check, its statistic, its threshold, and SHA-256 hashes of the
+   training features, the specification and the fitted model.
+
+3. **Predictions carry a validity status.** Every row comes back with an
+   interval or label set, a `.status`, and a `.reason` when that status is not
+   `valid`.
+
+4. **Refusal is the default.** Rows outside the certified support get `NA`, not
+   a number. Overriding that requires `enforce = FALSE`, and the override is
+   recorded on the returned object.
+
+The unit of configuration is the *specification*:
+
+```{r}
+spec <- attest_spec(split = split_random(prop = 0.2, calib = 0.2))
+spec
+```
+
+`default_checks()` supplies the standard set. `on_fail` decides what a blocking
+failure means: `"refuse"` (the default: no certificate, `attest_fit()` errors),
+`"flag"` or `"warn"`.
+
+## A certificate that issues
+
+```{r}
+n <- 4000
+d <- data.frame(x1 = rnorm(n), x2 = rnorm(n), x3 = runif(n, 0, 10))
+d$y <- factor(rbinom(n, 1, plogis(0.8 * d$x1 - 0.5 * d$x2)))
+
+m <- attest_fit(spec, y ~ x1 + x2 + x3, d, engine_glm())
+```
+
+The checks report as they run, and a certificate is issued. It is worth
+noticing that `x3` is pure noise: attest makes no claim that the model is
+*good*, only that the stated checks were run and passed.
+
+```{r}
+certificate(m)
+```
+
+## A certificate that is refused
+
+Now the case the package exists for. We add `score`, a feature that is almost a
+restatement of the outcome -- the classic shape of a leak, where a field
+recorded downstream of the label finds its way into the training frame.
+
+```{r}
+leaky <- d
+leaky$score <- ifelse(leaky$y == "1", rnorm(n, 3), rnorm(n, -3))
+```
+
+```{r error = TRUE}
+attest_fit(spec, y ~ x1 + x2 + x3 + score, leaky, engine_glm(), quiet = TRUE)
+```
+
+No object is returned. The fit does not complete.
+
+This is the point of the package, so it is worth being precise about what just
+happened. Fit that same leaky model without the blocking check and inspect it
+the way a careful analyst would:
+
+```{r warning = FALSE}
+peek <- attest_fit(
+  attest_spec(on_fail = "flag"), y ~ x1 + x2 + x3 + score, leaky,
+  engine_glm(), quiet = TRUE
+)
+compare <- function(x) {
+  r <- certificate(x)$results
+  c(ECE = r$calib_ece$statistic,
+    coverage = r$conformal_split$statistic,
+    q = r$conformal_split$evidence$q)
+}
+round(rbind(honest = compare(m), leaky = compare(peek)), 4)
+```
+
+Read that table carefully, because it is the argument for the whole package.
+
+The leaky model is **better calibrated** by a factor of about thirty, and its
+conformal quantile `q` collapses to zero -- meaning its label sets are
+singletons where the honest model mostly returns the uninformative `{0,1}`. On
+the two properties a reviewer actually looks at, calibration and sharpness, the
+leaking model is strictly better. Leakage does not look like a problem in the
+metrics; it looks like success.
+
+Coverage, meanwhile, is near 0.89 for both, and that is neither a coincidence
+nor a defect. Split conformal attains its target coverage *by construction*,
+for any underlying model, however good or bad it is. Coverage is a validity
+property of the procedure, not a quality signal about the model. It cannot tell
+a leaking model from an honest one, and it was never able to.
+
+So neither calibration nor coverage will save you here: one is fooled, the
+other is blind. That is why the leakage check has to run automatically, at fit
+time, and block -- rather than being one more diagnostic a busy analyst is
+invited to consult.
+
+Note also that `on_fail = "flag"` issues the certificate but marks it `failed`,
+and a model whose certificate is not `valid` is not sealed, so `predict()` will
+refuse it. Flagging lets you *inspect* a failing model; it does not let you use
+one.
+
+### Waivers are loud
+
+Sometimes a check is wrong about your data. You can waive it, but not silently:
+a waiver requires a reason, and that reason is written into the certificate and
+reprinted in every report thereafter.
+
+```{r}
+waived <- attest_fit(
+  spec, y ~ x1 + x2 + x3 + score, leaky, engine_glm(),
+  waive = "leak_target_proxy",
+  reason = "score is a validated underwriting rating available before the claim",
+  quiet = TRUE
+)
+certificate(waived)$waivers
+```
+
+The design intent is that a waiver is an on-the-record engineering decision
+rather than a way to make a warning disappear.
+
+## Predictions carry status
+
+```{r}
+predict(m, d[1:5, ])
+```
+
+`.set` is the conformal label set. A `{0,1}` row is not a failure -- it is the
+model declining to distinguish the classes at the requested confidence level.
+An empty set `{}` is also possible, and means no label is plausible at that
+level: a strong signal that the row does not belong.
+
+Now feed it rows outside the training support:
+
+```{r}
+nd <- d[1:5, ]
+nd$x1 <- c(0.2, 12, -11, 0.5, 0)
+predict(m, nd)
+```
+
+Rows 2 and 3 are refused. To see why that matters, override the contract:
+
+```{r}
+predict(m, nd, enforce = FALSE)
+```
+
+The refused rows come back maximally confident -- probabilities pinned near 1
+and near 0 -- on inputs the model has no evidence about. Extrapolation does not
+announce itself as uncertainty; it announces itself as certainty. Note that the
+object records `(NOT enforced)`, so the override travels with the result.
+
+### Shift is a batch property
+
+Support is checked per row. Distribution shift is a property of a batch, so it
+needs enough rows to estimate (`min_batch`, default 50):
+
+```{r}
+big <- d[1:200, ]
+big$x1 <- big$x1 + 2
+pb <- predict(m, big)
+table(pb$.status)
+unique(pb$.reason[pb$.status == "flagged"])
+```
+
+Most rows are individually inside the training range, so they are not refused --
+but the *batch* has moved, and PSI catches it. Flagged means the prediction is
+returned and the caller is told the population has changed.
+
+## The model card
+
+`report()` renders Markdown entirely from the certificate, so it cannot drift
+from the model it describes:
+
+```{r}
+cat(report(m)[1:12], sep = "\n")
+```
+
+## What a certificate does not guarantee
+
+This section matters more than the rest of the vignette. A certificate is
+evidence that stated checks were run and passed on stated data. It is not a
+warranty, and reading it as one would be worse than having no certificate at
+all.
+
+**Conformal coverage is marginal, not conditional.** `alpha = 0.1` gives
+intervals covering the truth about 90% of the time *averaged over the
+population*. It says nothing about any particular row or subgroup. Coverage can
+be 90% overall while being 99% for the bulk of your data and 40% for a minority
+segment. If you need per-group validity, check it per group; attest does not do
+this for you.
+
+**Coverage is finite-sample and random.** Split conformal guarantees
+`1 - alpha` coverage in expectation over draws of the calibration set, within
+about `1 / (n_calib + 1)`. Empirical coverage on any one test set scatters
+around the target, and a reading slightly below `1 - alpha` is sampling noise
+rather than a broken guarantee. The `tolerance` argument to `conformal_split()`
+exists for exactly this reason.
+
+**Coverage is not a measure of model quality.** As the leakage example above
+shows, a conformal procedure hits its target coverage whatever model it wraps.
+A useless model achieves 90% coverage by returning enormous intervals or label
+sets containing every class. Coverage tells you the procedure is valid; only
+sharpness -- interval width, or the quantile `q` -- tells you it is useful. Read
+the two together or neither means anything.
+
+**Exchangeability is the whole assumption, and shift breaks it.** The conformal
+guarantee holds when calibration and future data are exchangeable. Under
+distribution shift it is simply void -- not degraded in a quantified way, void.
+This is the honest reason attest refuses out-of-support rows: refusal is not an
+extra safety feature layered on top of the guarantee, it is an admission that
+outside the training support **there is no guarantee left to offer**. The
+refusal and the interval are two halves of one claim.
+
+**Support is checked marginally, not jointly.** A row is refused when a feature
+falls outside its own training range. A row can sit comfortably inside every
+feature's range and still be far from the joint distribution -- a 40-year-old
+with a 45-year career. Marginal support checks will not catch that, and the
+`.shift` score will not either.
+
+**PSI is a heuristic.** The 0.2 threshold is convention, not theory. PSI is
+computed per feature on binned marginals: it will miss a shift in the
+dependence structure between features that leaves every marginal intact, and it
+will fire on harmless seasonal movement in a feature the model barely uses.
+Treat a flag as a prompt to investigate, not a verdict.
+
+**The leakage checks are shallow by construction.** `leak_target_proxy()` fits
+one-variable models, so it finds single features that restate the target. It
+will not find a leak spread across two features, nor one mediated by a grouping
+structure. `leak_duplicates()` finds exact duplicate rows, not near-duplicates.
+Passing means the obvious leaks are absent, not that the data is clean.
+
+**Calibration is measured where it was measured.** ECE is computed on the test
+split at fit time, with equal-width bins. It is a statement about that data on
+that day. Nothing recomputes it later.
+
+**Hashes prove integrity, not quality.** `verify()` confirms the model object
+has not been altered since certification. It does not, and cannot, confirm the
+training data was appropriate, correctly labelled, or ethically obtained.
+`verify(x, data)` currently checks only that the expected feature columns are
+present, because the split cannot be reconstructed without the original seed.
+
+**A certificate has a shelf life.** It is a claim about a moment. Nothing in
+the object expires it, and a nine-month-old certificate on a drifted population
+is a statement about a world that no longer exists.
+
+The scope of the claim is deliberately narrow: *these checks, this data, this
+moment*. Its value comes from being immutable, machine-readable and attached to
+the artefact -- not from being broad.
+
+## Extending
+
+Checks are the extension point. A check is a function of the fitting context
+returning an `attest_result()`:
+
+```{r}
+max_missing <- function(max_prop = 0.05) {
+  new_check("max_missing", stage = "pre", blocking = TRUE, run = function(ctx) {
+    prop <- mean(is.na(ctx$train[ctx$features]))
+    attest_result(
+      "max_missing",
+      if (prop <= max_prop) "pass" else "fail",
+      statistic = prop, threshold = max_prop,
+      message = sprintf("%.1f%% of training feature cells missing", 100 * prop)
+    )
+  })
+}
+
+custom <- attest_spec(checks = c(default_checks(), list(max_missing())))
+m2 <- attest_fit(custom, y ~ x1 + x2 + x3, d, engine_glm(), quiet = TRUE)
+certificate(m2)$results$max_missing
+```
+
+`stage = "pre"` runs before fitting and sees only data; `stage = "post"` runs
+after and sees `ctx$model`. Setting `blocking = FALSE` makes a check
+informational -- it is recorded in the certificate and appears in the report,
+but never prevents issuance.
