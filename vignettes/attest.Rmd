@@ -503,6 +503,34 @@ The scope of the claim is deliberately narrow: *these checks, this data, this
 moment*. Its value comes from being immutable, machine-readable and attached to
 the artefact -- not from being broad.
 
+## Bringing your own model
+
+attest ships adapters for `glm` and `ranger`, but the point is not to be a
+modelling package. `engine_parsnip()` accepts any parsnip specification,
+which reaches xgboost, glmnet, ranger and the rest of that ecosystem without an
+adapter each:
+
+```{r eval = requireNamespace("parsnip", quietly = TRUE)}
+library(parsnip)
+m_gbm <- attest_fit(
+  attest_spec(), y ~ x1 + x2 + x3, d,
+  engine_parsnip(boost_tree(trees = 50)),
+  quiet = TRUE
+)
+certificate(m_gbm)$engine
+```
+
+The certificate records what was actually fitted rather than the word
+`"parsnip"`, so a model card names the model and its back end. The
+specification's mode is taken from the outcome, so `set_mode()` is unnecessary;
+a mode that contradicts the outcome is an error rather than a silent
+correction.
+
+One requirement is not negotiable: the engine must produce probabilities for
+classification. Without them there is nothing to calibrate and no conformal
+label set to build, so an engine that cannot is rejected at fit time rather
+than issuing a certificate whose checks mean nothing.
+
 ## Extending
 
 Checks are the extension point. A check is a function of the fitting context

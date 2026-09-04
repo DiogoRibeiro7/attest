@@ -181,7 +181,7 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
   c2st <- results$shift_c2st$evidence
   hashes <- list(
     data = hash_obj(data[idx$train, features, drop = FALSE]),
-    spec = hash_obj(spec),
+    spec = hash_obj(spec_fingerprint(spec)),
     model = hash_obj(ctx$model)
   )
   cert <- structure(list(
@@ -228,6 +228,34 @@ hash_obj <- function(x) {
   # values, never on where the object happened to be created.
   raw <- serialize(x, NULL, refhook = function(e) "env")
   digest::digest(raw, algo = "sha256", serialize = FALSE)
+}
+
+# A specification is mostly closures, and serialising a closure is not a stable
+# operation: R's just-in-time compiler attaches bytecode to a function the first
+# few times it runs, so the same check hashes differently before and after it
+# has been used. Hashing a structural summary instead makes the spec hash mean
+# "this configuration" -- reproducible across sessions, and sensitive to the
+# thresholds a check was built with, which live in its enclosing environment.
+spec_fingerprint <- function(spec) {
+  simple <- function(e) {
+    vals <- as.list(e)
+    if (!length(vals)) {
+      return(list())
+    }
+    vals <- vals[order(names(vals))]
+    lapply(vals, function(v) if (is.atomic(v) || is.null(v)) v else class(v)[1])
+  }
+  list(
+    split = c(list(id = spec$split$id), simple(spec$split[names(spec$split) != "id"])),
+    on_fail = spec$on_fail,
+    strict = isTRUE(spec$strict),
+    checks = lapply(spec$checks[order(names(spec$checks))], function(ch) {
+      list(
+        id = ch$id, stage = ch$stage, blocking = ch$blocking,
+        args = simple(environment(ch$run))
+      )
+    })
+  )
 }
 
 # ---- Certificate -----------------------------------------------------------

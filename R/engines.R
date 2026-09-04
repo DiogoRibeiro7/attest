@@ -26,6 +26,83 @@ engine_ranger <- function(...) {
   new_engine("ranger", ..., class = "engine_ranger")
 }
 
+#' Fit any parsnip model under a certificate
+#'
+#' Wraps a parsnip model specification, so anything parsnip can fit --
+#' `boost_tree()` on xgboost, `linear_reg()` on glmnet, `rand_forest()` on
+#' ranger, and the rest -- can be certified without writing an adapter for each.
+#'
+#' @details
+#' The specification's mode is set from the task inferred by [attest_fit()], so
+#' the usual `set_mode()` call is unnecessary. A mode that contradicts the
+#' outcome is an error rather than a silent correction.
+#'
+#' The certificate records the specification rather than the bare word
+#' `"parsnip"`, as `parsnip:<model>/<engine>` -- for example
+#' `parsnip:boost_tree/xgboost` -- so a model card says what was actually
+#' fitted.
+#'
+#' attest needs a probability for the second outcome level, which parsnip
+#' supplies through `type = "prob"`. An engine offering no probabilities cannot
+#' be calibrated or given conformal label sets, and is rejected at fit time
+#' rather than issuing a certificate whose checks mean nothing.
+#'
+#' @param spec A parsnip `model_spec`, such as `parsnip::logistic_reg()`.
+#' @return An object of class `attest_engine`.
+#' @examples
+#' if (requireNamespace("parsnip", quietly = TRUE)) {
+#'   engine_parsnip(parsnip::logistic_reg())
+#' }
+#' @export
+engine_parsnip <- function(spec) {
+  rlang::check_installed("parsnip")
+  if (!inherits(spec, "model_spec")) {
+    rlang::abort("`spec` must be a parsnip model specification")
+  }
+  eng <- spec$engine %||% "default"
+  id <- sprintf("parsnip:%s/%s", class(spec)[1], eng)
+  structure(
+    list(id = id, args = list(), spec = spec),
+    class = c("engine_parsnip", "attest_engine")
+  )
+}
+
+#' @export
+engine_fit.engine_parsnip <- function(engine, formula, data, task) {
+  spec <- engine$spec
+  want <- if (task == "classification") "classification" else "regression"
+  have <- spec$mode %||% "unknown"
+  if (have %in% c("unknown", "")) {
+    spec <- parsnip::set_mode(spec, want)
+  } else if (!identical(have, want)) {
+    rlang::abort(sprintf(
+      "engine mode is %s but the outcome implies %s", have, want
+    ))
+  }
+  fit <- parsnip::fit(spec, formula, data = data)
+  if (task == "classification" && length(fit$lvl) != 2) {
+    rlang::abort("attest supports two-level classification outcomes only")
+  }
+  # Timing varies between otherwise identical fits and would make the model
+  # hash depend on how fast the machine was.
+  fit$elapsed <- NULL
+  fit
+}
+
+#' @export
+engine_predict.engine_parsnip <- function(engine, object, newdata,
+                                          type = c("prob", "numeric")) {
+  if (identical(object$spec$mode, "classification")) {
+    p <- stats::predict(object, new_data = newdata, type = "prob")
+    col <- paste0(".pred_", object$lvl[2])
+    if (!col %in% names(p)) {
+      rlang::abort(sprintf("parsnip returned no `%s` column", col))
+    }
+    return(as.numeric(p[[col]]))
+  }
+  as.numeric(stats::predict(object, new_data = newdata)$.pred)
+}
+
 #' @export
 print.attest_engine <- function(x, ...) {
   cat("<attest_engine> ", x$id, "\n", sep = "")

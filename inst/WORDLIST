@@ -19,11 +19,17 @@ auc
 chi
 covariate
 et
+glmnet
 heteroscedastic
 misspecified
+mlr
 newdata
+parsnip
+ranger
 reweight
 reweighted
 reweighting
 reweights
 tibble
+tidymodels
+xgboost

@@ -56,3 +56,16 @@
   features in their tails. A row that is unremarkable on every feature alone
   but implausible in combination now scores near 1 where it previously scored
   low. It falls back to the old measure when a model has no numeric features.
+* `engine_parsnip()` fits any parsnip model specification under a
+  certificate, so xgboost, glmnet, ranger and the rest of that ecosystem work
+  without an adapter each. The mode is taken from the outcome rather than
+  needing `set_mode()`, and a mode contradicting the outcome is an error. The
+  certificate records the specification as `parsnip:<model>/<engine>` rather
+  than the bare word `parsnip`, so a model card says what was fitted.
+* The specification hash is computed from a structural fingerprint instead of
+  by serialising the checks. Serialising a closure is not a stable operation:
+  the just-in-time compiler attaches bytecode to a function once it has run,
+  so the same specification hashed before and after use gave different
+  answers, and two identical fits produced different certificate ids.
+  Identical fits now produce identical certificates, and the hash is sensitive
+  to the thresholds a check was built with.

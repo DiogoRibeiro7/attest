@@ -18,7 +18,8 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends: R (>= 4.1)
 Imports: cli, digest, rlang, stats, tibble, utils
-Suggests: ranger, testthat (>= 3.0.0), knitr, rmarkdown
+Suggests: ranger, parsnip, glmnet, xgboost, testthat (>= 3.0.0), knitr,
+    rmarkdown
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/DiogoRibeiro7/attest
