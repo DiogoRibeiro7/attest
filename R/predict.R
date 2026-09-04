@@ -3,10 +3,18 @@
 #' Returns an `attested_prediction`: a tibble with `.pred`, an interval
 #' (`.lower`/`.upper` for regression, `.set` for classification), a
 #' `.status` of `"valid"`, `"flagged"` or `"refused"`, a row-level `.shift`
-#' score (share of features outside the central training range) and a
-#' `.reason`. Refused rows have `NA` predictions unless `enforce = FALSE`.
+#' score and a `.reason`. Refused rows have `NA` predictions unless
+#' `enforce = FALSE`.
 #'
 #' @details
+#' `.shift` is the row's Mahalanobis position within the joint training
+#' distribution, on a chi-square probability scale: 0.5 is a typical row and
+#' 0.99 means further from the centre than 99% of the training data. Because it
+#' uses the joint structure it catches a row that is unremarkable on every
+#' feature taken alone but implausible in combination, which a per-feature tail
+#' measure cannot. It falls back to the share of features in the tails when the
+#' model has no numeric features to form a covariance from.
+#'
 #' When the model was fitted with `conformal_split(weighted = TRUE)` the
 #' interval is not fixed. Calibration scores are reweighted by an estimated
 #' covariate density ratio between the calibration set and this batch, so each
@@ -64,6 +72,12 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
       max(sh$batch_psi[sh$batch_flagged]), bar,
       paste(sh$batch_flagged, collapse = ", ")
     )
+  }
+  c2 <- c2st_eval(object$c2st, newdata, object$features)
+  if (isTRUE(c2$flagged)) {
+    status[] <- "flagged"
+    note <- sprintf("C2ST auc %.2f (p %.3g)", c2$auc, c2$p_value)
+    reason[] <- ifelse(is.na(reason), note, paste(reason, note, sep = "; "))
   }
   status[sh$refused] <- "refused"
   reason[sh$refused] <- sh$refuse_reason[sh$refused]
@@ -186,10 +200,15 @@ shift_eval <- function(shift, newdata, features) {
     }, character(1))
   }
   flagged <- names(batch_psi)[batch_psi > effective]
+  # Prefer the Mahalanobis position within the joint training distribution;
+  # the per-feature tail share is only a fallback when there is nothing
+  # numeric to build a covariance from.
+  row_score <- mahalanobis_score(shift$mahalanobis, newdata)
+  if (is.null(row_score)) row_score <- rowMeans(central)
   list(
     batch_flagged = flagged,
     refused = refused, refuse_reason = refuse_reason,
-    row_score = rowMeans(central), threshold = shift$threshold,
+    row_score = row_score, threshold = shift$threshold,
     batch_psi = batch_psi, psi_null = psi_null,
     effective_threshold = stats::setNames(effective, features)
   )

@@ -211,6 +211,53 @@ Most rows are individually inside the training range, so they are not refused --
 but the *batch* has moved, and PSI catches it. Flagged means the prediction is
 returned and the caller is told the population has changed.
 
+### What a per-feature statistic cannot see
+
+PSI compares one feature at a time against its training bins. That makes it
+cheap and interpretable -- it names the feature that moved -- but it is blind by
+construction to a change in the *relationship* between features. Consider two
+features whose marginal distributions are untouched and whose correlation
+reverses:
+
+```{r}
+correlated <- function(n, rho) {
+  x <- rnorm(n)
+  z <- rho * x + sqrt(1 - rho^2) * rnorm(n)
+  data.frame(x = x, z = z, y = x + z + rnorm(n))
+}
+ref <- correlated(3000, 0.8)
+flipped <- correlated(800, -0.8)
+c(ref_sd_x = sd(ref$x), new_sd_x = sd(flipped$x))
+```
+
+Every marginal is where it was, so PSI has nothing to report. A classifier
+asked to tell the two samples apart has no such difficulty:
+
+```{r}
+r <- attest_c2st(ref, flipped, c("x", "z"))
+c(auc = round(r$auc, 3), p_value = r$p_value)
+```
+
+`shift_c2st()` adds that test to a specification. It stores a reference sample
+in the certificate and runs the comparison at prediction time:
+
+```{r}
+spec_c2st <- attest_spec(checks = c(default_checks(), list(shift_c2st())))
+mc <- attest_fit(spec_c2st, y ~ x + z, ref, engine_glm(), quiet = TRUE)
+unique(predict(mc, flipped)$.reason)
+```
+
+The AUC is computed on held-out scores, by fitting on half the pooled rows and
+scoring the other half. That is not fussiness: an in-sample AUC is optimistic,
+because a flexible model can separate two *identical* samples once it is
+allowed to fit and score the same rows, and it would report shift where there
+is none. As with PSI, a flag needs both statistical significance and an effect
+size — `auc_min` — because a large enough batch makes any difference significant.
+
+The two checks are complements. PSI is cheap, stores no data and names the
+feature that moved; the classifier test costs a reference sample and a model
+fit but sees structure PSI cannot.
+
 ## Checks know how uncertain they are
 
 Every check statistic above is estimated from a finite sample, so comparing a
@@ -407,21 +454,30 @@ and the result is noisy and conservative -- the table above shows over-coverage
 setting in well before the method breaks. Treat a widened interval as a better
 answer than one that ignores the shift, not as a restored guarantee.
 
-**Support is checked marginally, not jointly.** A row is refused when a feature
-falls outside its own training range. A row can sit comfortably inside every
-feature's range and still be far from the joint distribution -- a 40-year-old
-with a 45-year career. Marginal support checks will not catch that, and the
-`.shift` score will not either.
+**Refusal is decided marginally, even though `.shift` is not.** A row is
+refused when a feature falls outside its own training range, so a row that sits
+inside every feature's range but far from the joint distribution -- a
+40-year-old with a 45-year career -- is not refused. The `.shift` score *does*
+see it, because it is a Mahalanobis position within the joint training
+distribution rather than a count of tails, so such a row scores near 1. But
+scoring it and refusing it are different things: nothing in the refusal path
+consults `.shift`. Read it, and set your own bar if joint implausibility should
+stop a prediction.
 
 **PSI is a heuristic, and its threshold is an effect size.** The 0.2 line is
 convention, not theory. The batch size problem is handled -- see *Checks know
-how uncertain they are* above -- but the rest is not: PSI is computed per
-feature on binned marginals, so it will miss a shift in the dependence
-structure between features that leaves every marginal intact, and it will fire
-on harmless seasonal movement in a feature the model barely uses. Because
-`threshold` acts as an effect-size floor, a real but subtle shift is never flagged
-however many rows you have. Treat a flag as a prompt to investigate, not a
-verdict.
+how uncertain they are* above -- and the dependence blind spot is covered by
+`shift_c2st()`, but PSI on its own still fires on harmless seasonal movement in
+a feature the model barely uses. Because `threshold` acts as an effect-size
+floor, a real but subtle shift is never flagged however many rows you have.
+Treat a flag as a prompt to investigate, not a verdict.
+
+**Detecting shift is not the same as knowing it matters.** Neither PSI nor the
+classifier test looks at the outcome. They report that the input distribution
+moved, which is not the same as the model having got worse: a large shift in a
+feature the model ignores is harmless, while a subtle shift in a decisive one
+may not be. Nothing here measures live accuracy, because in production the
+labels have usually not arrived yet.
 
 **The leakage checks are shallow by construction.** `leak_target_proxy()` fits
 one-variable models, so it finds single features that restate the target. It

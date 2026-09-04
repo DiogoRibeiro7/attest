@@ -24,10 +24,18 @@ A tibble of class \code{attested_prediction}.
 Returns an \code{attested_prediction}: a tibble with \code{.pred}, an interval
 (\code{.lower}/\code{.upper} for regression, \code{.set} for classification), a
 \code{.status} of \code{"valid"}, \code{"flagged"} or \code{"refused"}, a row-level \code{.shift}
-score (share of features outside the central training range) and a
-\code{.reason}. Refused rows have \code{NA} predictions unless \code{enforce = FALSE}.
+score and a \code{.reason}. Refused rows have \code{NA} predictions unless
+\code{enforce = FALSE}.
 }
 \details{
+\code{.shift} is the row's Mahalanobis position within the joint training
+distribution, on a chi-square probability scale: 0.5 is a typical row and
+0.99 means further from the centre than 99\% of the training data. Because it
+uses the joint structure it catches a row that is unremarkable on every
+feature taken alone but implausible in combination, which a per-feature tail
+measure cannot. It falls back to the share of features in the tails when the
+model has no numeric features to form a covariance from.
+
 When the model was fitted with \code{conformal_split(weighted = TRUE)} the
 interval is not fixed. Calibration scores are reweighted by an estimated
 covariate density ratio between the calibration set and this batch, so each

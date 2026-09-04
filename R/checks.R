@@ -551,7 +551,59 @@ shift_monitor <- function(threshold = 0.2, bins = 10, support_tol = 0.05,
       evidence = list(
         baseline = baseline, threshold = threshold,
         min_batch = min_batch, n_boot = n_boot,
-        conf = conf
+        conf = conf,
+        mahalanobis = mahalanobis_baseline(ctx$train, ctx$features)
+      )
+    )
+  })
+}
+
+#' Shift check: classifier two-sample test on the prediction batch
+#'
+#' Stores a reference sample of the training rows. At prediction time a
+#' classifier is asked to tell that reference from the incoming batch, using
+#' held-out scores; an AUC near 0.5 means the two are indistinguishable. See
+#' [attest_c2st()] for the mechanics.
+#'
+#' @details
+#' This complements [shift_monitor()] rather than replacing it. PSI is computed
+#' per feature on binned marginals, so it cannot see a change in the
+#' relationship *between* features. Two samples with identical marginals but
+#' opposite correlation produce no PSI signal at all, while the classifier
+#' separates them easily. Conversely PSI is cheaper, needs no reference sample
+#' stored in the certificate, and says which feature moved.
+#'
+#' A batch is flagged only when the test is both significant at `alpha` and the
+#' held-out AUC reaches `auc_min`. The second bar matters because a large enough
+#' batch makes an arbitrarily small difference significant, and a shift too
+#' small to separate the samples is rarely a shift worth acting on.
+#'
+#' @param auc_min Minimum held-out AUC before a batch is flagged, an effect
+#'   size floor.
+#' @param alpha Significance level for the test.
+#' @param max_ref Maximum number of training rows stored as the reference
+#'   sample. Larger gives more power and a larger certificate.
+#' @param min_batch Minimum incoming rows before the test is attempted.
+#' @param interactions Passed to [attest_c2st()]; keep `TRUE` to detect changes
+#'   in the dependence between features.
+#' @return An `attest_check`.
+#' @examples
+#' shift_c2st()
+#' # demand a clearer separation before flagging
+#' shift_c2st(auc_min = 0.7)
+#' @export
+shift_c2st <- function(auc_min = 0.6, alpha = 0.05, max_ref = 2000,
+                       min_batch = 50, interactions = TRUE) {
+  new_check("shift_c2st", stage = "post", blocking = FALSE, run = function(ctx) {
+    n <- nrow(ctx$train)
+    take <- if (n > max_ref) sample.int(n, max_ref) else seq_len(n)
+    attest_result("shift_c2st", "info",
+      threshold = auc_min,
+      message = sprintf("reference sample stored (%d rows)", length(take)),
+      evidence = list(
+        reference = ctx$train[take, ctx$features, drop = FALSE],
+        auc_min = auc_min, alpha = alpha, min_batch = min_batch,
+        interactions = interactions
       )
     )
   })

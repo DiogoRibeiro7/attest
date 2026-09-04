@@ -41,3 +41,18 @@
   use outside the package.
 * `print()` on an `attested_prediction` no longer warns when the object has
   been subset to drop the `.status` column.
+* `shift_c2st()` adds a classifier two-sample test: a model is asked to tell a
+  stored reference sample from the incoming batch, and an AUC near 0.5 means
+  they are indistinguishable. It sees what a per-feature statistic cannot. On
+  two samples with identical marginals whose correlation reverses, PSI reports
+  nothing at all while the test reaches AUC 0.90. Scores are cross-fitted,
+  because an in-sample AUC reads 0.53 on two identical samples where the
+  cross-fitted figure correctly reads 0.49. A batch is flagged only when the
+  test is significant and the AUC clears `auc_min`, mirroring how the PSI
+  monitor pairs its simulated null with a threshold.
+* `attest_c2st()` is exported for use outside the package.
+* `.shift` is now the row's Mahalanobis position within the joint training
+  distribution on a chi-square probability scale, rather than the share of
+  features in their tails. A row that is unremarkable on every feature alone
+  but implausible in combination now scores near 1 where it previously scored
+  low. It falls back to the old measure when a model has no numeric features.

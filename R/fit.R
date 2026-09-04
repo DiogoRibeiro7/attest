@@ -178,6 +178,7 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
 
   conf <- results$conformal_split$evidence
   shift <- results$shift_monitor$evidence
+  c2st <- results$shift_c2st$evidence
   hashes <- list(
     data = hash_obj(data[idx$train, features, drop = FALSE]),
     spec = hash_obj(spec),
@@ -205,7 +206,7 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
     engine = engine, model = ctx$model, formula = formula,
     task = task, outcome = outcome, features = features,
     levels = if (task == "classification") levels(data[[outcome]]) else NULL,
-    conformal = conf, shift = shift,
+    conformal = conf, shift = shift, c2st = c2st,
     certificate = cert
   ), class = "attested_model")
 }
