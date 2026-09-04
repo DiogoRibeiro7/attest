@@ -18,3 +18,6 @@ An \code{attest_check}.
 \description{
 Leakage check: test rows must not precede training rows in time
 }
+\examples{
+leak_temporal("order_date")
+}

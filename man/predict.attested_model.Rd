@@ -27,3 +27,14 @@ Returns an \code{attested_prediction}: a tibble with \code{.pred}, an interval
 score (share of features outside the central training range) and a
 \code{.reason}. Refused rows have \code{NA} predictions unless \code{enforce = FALSE}.
 }
+\examples{
+set.seed(1)
+d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
+d$y <- factor(rbinom(1000, 1, plogis(d$x1 - d$x2)))
+m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+predict(m, d[1:3, ])
+# a row outside the certified support is refused
+nd <- d[1:2, ]
+nd$x1[1] <- 50
+predict(m, nd)
+}

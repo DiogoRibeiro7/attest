@@ -106,13 +106,16 @@ the way a careful analyst would:
 ```{r warning = FALSE}
 peek <- attest_fit(
   attest_spec(on_fail = "flag"), y ~ x1 + x2 + x3 + score, leaky,
-  engine_glm(), quiet = TRUE
+  engine_glm(),
+  quiet = TRUE
 )
 compare <- function(x) {
   r <- certificate(x)$results
-  c(ECE = r$calib_ece$statistic,
+  c(
+    ECE = r$calib_ece$statistic,
     coverage = r$conformal_split$statistic,
-    q = r$conformal_split$evidence$q)
+    q = r$conformal_split$evidence$q
+  )
 }
 round(rbind(honest = compare(m), leaky = compare(peek)), 4)
 ```
@@ -246,7 +249,8 @@ inverts that, treating an inconclusive check as a failure:
 ```{r error = TRUE}
 attest_fit(
   attest_spec(checks = list(calib_ece(max = mid), shift_monitor()), strict = TRUE),
-  y ~ x1 + x2 + x3, d, engine_glm(), quiet = TRUE
+  y ~ x1 + x2 + x3, d, engine_glm(),
+  quiet = TRUE
 )
 ```
 

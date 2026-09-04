@@ -12,3 +12,6 @@ An \code{attest_check}.
 \description{
 Class imbalance report (informational, never blocks)
 }
+\examples{
+imbalance_report()
+}

@@ -35,3 +35,8 @@ The interval reflects sampling noise in the \emph{test} set only. The
 calibration quantile \code{q} is treated as fixed, so the interval understates
 total uncertainty when the calibration set is small.
 }
+\examples{
+conformal_split()
+# 95\% target coverage
+conformal_split(alpha = 0.05)
+}

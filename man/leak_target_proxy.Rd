@@ -32,3 +32,8 @@ fitted once, and resampling is applied to their per-row predictions rather
 than refitting each replicate. This keeps the check affordable and captures
 sampling noise in the score, but not the variability of the fits themselves.
 }
+\examples{
+leak_target_proxy()
+# a stricter bar, with the interval disabled
+leak_target_proxy(threshold = 0.9, n_boot = 0)
+}

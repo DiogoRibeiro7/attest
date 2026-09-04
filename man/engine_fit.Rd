@@ -21,3 +21,10 @@ A fitted object.
 \description{
 Fit a model with an engine
 }
+\examples{
+set.seed(1)
+d <- data.frame(x = rnorm(400))
+d$y <- factor(rbinom(400, 1, plogis(d$x)))
+fit <- engine_fit(engine_glm(), y ~ x, d, "classification")
+class(fit)
+}

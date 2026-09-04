@@ -27,16 +27,22 @@ attest_spec <- function(split = split_random(),
   ids <- vapply(checks, function(ch) ch$id, character(1))
   if (anyDuplicated(ids)) rlang::abort("duplicate check ids in spec")
   names(checks) <- ids
-  structure(list(split = split, checks = checks, on_fail = on_fail,
-                 strict = strict),
-            class = "attest_spec")
+  structure(
+    list(
+      split = split, checks = checks, on_fail = on_fail,
+      strict = strict
+    ),
+    class = "attest_spec"
+  )
 }
 
 #' @rdname attest_spec
 #' @export
 default_checks <- function() {
-  list(leak_duplicates(), leak_target_proxy(), imbalance_report(),
-       calib_ece(), conformal_split(), shift_monitor())
+  list(
+    leak_duplicates(), leak_target_proxy(), imbalance_report(),
+    calib_ece(), conformal_split(), shift_monitor()
+  )
 }
 
 #' @export
@@ -50,9 +56,15 @@ print.attest_spec <- function(x, ...) {
 }
 
 infer_task <- function(y) {
-  if (is.logical(y)) return("classification")
-  if (is.factor(y) && nlevels(y) == 2) return("classification")
-  if (is.numeric(y)) return("regression")
+  if (is.logical(y)) {
+    return("classification")
+  }
+  if (is.factor(y) && nlevels(y) == 2) {
+    return("classification")
+  }
+  if (is.numeric(y)) {
+    return("regression")
+  }
   rlang::abort("outcome must be numeric, logical, or a two-level factor")
 }
 
@@ -85,7 +97,12 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
     rlang::abort("every waiver requires a `reason`")
   }
   unknown <- setdiff(waive, names(spec$checks))
-  if (length(unknown)) rlang::abort(sprintf("unknown check ids in `waive`: %s", paste(unknown, collapse = ", ")))
+  if (length(unknown)) {
+    rlang::abort(sprintf(
+      "unknown check ids in `waive`: %s",
+      paste(unknown, collapse = ", ")
+    ))
+  }
 
   outcome <- all.vars(formula[[2]])
   y <- data[[outcome]]
@@ -99,12 +116,16 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
   }
 
   idx <- do_split(spec$split, data)
-  if (length(idx$calib) == 0) rlang::abort("calibration set is empty; increase `calib` in the split")
-  ctx <- list(train = data[idx$train, , drop = FALSE],
-              calib = data[idx$calib, , drop = FALSE],
-              test = data[idx$test, , drop = FALSE],
-              task = task, outcome = outcome, features = features,
-              engine = engine, spec = spec)
+  if (length(idx$calib) == 0) {
+    rlang::abort("calibration set is empty; increase `calib` in the split")
+  }
+  ctx <- list(
+    train = data[idx$train, , drop = FALSE],
+    calib = data[idx$calib, , drop = FALSE],
+    test = data[idx$test, , drop = FALSE],
+    task = task, outcome = outcome, features = features,
+    engine = engine, spec = spec
+  )
 
   results <- list()
   run_stage <- function(stage) {
@@ -121,7 +142,7 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
   }
 
   run_stage("pre")
-  fit_data <- rbind(ctx$train, ctx$calib)  # calib is only used for conformal scores
+  # The model sees only `train`; `calib` is held back for conformal scores.
   ctx$model <- engine_fit(engine, formula, ctx$train, task)
   run_stage("post")
 
@@ -136,8 +157,10 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
 
   status <- if (length(failed) == 0) "valid" else "failed"
   if (length(weak) > 0 && !quiet) {
+    ids <- paste(weak, collapse = ", ")
+    hint <- if (isTRUE(spec$strict)) "" else "; treated as a pass (see `strict`)"
     cli::cli_alert_warning(
-      "inconclusive: {paste(weak, collapse = ', ')} -- interval straddles the threshold{if (!isTRUE(spec$strict)) '; treated as a pass (see `strict`)' else ''}"
+      "inconclusive: {ids} -- interval straddles the threshold{hint}"
     )
   }
   if (length(failed) > 0) {
@@ -188,12 +211,14 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
 }
 
 report_line <- function(res, blocking) {
-  sym <- switch(res$status, pass = cli::col_green(cli::symbol$tick),
-                weak = cli::col_yellow("?"),
-                fail = cli::col_red(cli::symbol$cross),
-                waived = cli::col_yellow("~"),
-                untestable = cli::col_grey("-"),
-                info = cli::col_blue("i"))
+  sym <- switch(res$status,
+    pass = cli::col_green(cli::symbol$tick),
+    weak = cli::col_yellow("?"),
+    fail = cli::col_red(cli::symbol$cross),
+    waived = cli::col_yellow("~"),
+    untestable = cli::col_grey("-"),
+    info = cli::col_blue("i")
+  )
   cli::cat_line(sprintf("%s %-20s %-11s %s", sym, res$id, res$status, res$message))
 }
 
@@ -213,6 +238,15 @@ hash_obj <- function(x) {
 #' @return `certificate()` returns the certificate; `is_sealed()` a logical;
 #'   `verify()` a logical with attribute `"diff"` listing what changed;
 #'   `unseal()` the raw engine object.
+#' @examples
+#' set.seed(1)
+#' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
+#' d$y <- factor(rbinom(1000, 1, plogis(d$x1 - d$x2)))
+#' m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+#' certificate(m)
+#' is_sealed(m)
+#' verify(m)
+#' class(unseal(m))
 #' @name certificate
 #' @export
 certificate <- function(x) {
@@ -252,19 +286,32 @@ unseal <- function(x) {
 
 #' @export
 print.certificate <- function(x, ...) {
+  n <- x$n
   cli::cli_h2("Certificate {x$id}")
-  cli::cli_text("issued {x$issued} UTC | status {.strong {x$status}} | on_fail {.val {x$on_fail}}")
-  cli::cli_text("task {x$task} | engine {x$engine} | split {x$split} | n = {x$n['train']}/{x$n['calib']}/{x$n['test']} (train/calib/test)")
+  cli::cli_text(
+    "issued {x$issued} UTC | status {.strong {x$status}} | ",
+    "on_fail {.val {x$on_fail}}"
+  )
+  cli::cli_text(
+    "task {x$task} | engine {x$engine} | split {x$split} | ",
+    "n = {n['train']}/{n['calib']}/{n['test']} (train/calib/test)"
+  )
   for (res in x$results) report_line(res, TRUE)
   if (!is.null(x$waivers)) {
-    cli::cli_alert_warning(cli::col_red("WAIVED: {paste(x$waivers$ids, collapse = ', ')} -- \"{x$waivers$reason}\""))
+    ids <- paste(x$waivers$ids, collapse = ", ")
+    cli::cli_alert_warning(
+      cli::col_red("WAIVED: {ids} -- \"{x$waivers$reason}\"")
+    )
   }
   invisible(x)
 }
 
 #' @export
 print.attested_model <- function(x, ...) {
-  cli::cli_text("<attested_model> {x$task} on {.field {x$outcome}} with {length(x$features)} feature{?s}, engine {x$engine$id}")
+  cli::cli_text(
+    "<attested_model> {x$task} on {.field {x$outcome}} with ",
+    "{length(x$features)} feature{?s}, engine {x$engine$id}"
+  )
   print(x$certificate)
   invisible(x)
 }

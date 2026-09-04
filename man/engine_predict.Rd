@@ -21,3 +21,10 @@ A numeric vector.
 \description{
 Predict from an engine-fitted object
 }
+\examples{
+set.seed(1)
+d <- data.frame(x = rnorm(400))
+d$y <- factor(rbinom(400, 1, plogis(d$x)))
+fit <- engine_fit(engine_glm(), y ~ x, d, "classification")
+head(engine_predict(engine_glm(), fit, d, type = "prob"))
+}

@@ -13,13 +13,31 @@
 #'   `"enforced"` attribute.
 #' @param ... Unused.
 #' @return A tibble of class `attested_prediction`.
+#' @examples
+#' set.seed(1)
+#' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
+#' d$y <- factor(rbinom(1000, 1, plogis(d$x1 - d$x2)))
+#' m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+#' predict(m, d[1:3, ])
+#' # a row outside the certified support is refused
+#' nd <- d[1:2, ]
+#' nd$x1[1] <- 50
+#' predict(m, nd)
 #' @export
 predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   newdata <- as.data.frame(newdata)
   missing <- setdiff(object$features, names(newdata))
-  if (length(missing)) rlang::abort(sprintf("missing features: %s", paste(missing, collapse = ", ")))
+  if (length(missing)) {
+    rlang::abort(sprintf(
+      "missing features: %s",
+      paste(missing, collapse = ", ")
+    ))
+  }
   if (!is_sealed(object)) {
-    rlang::abort("model is not sealed: certificate is invalid or the model was modified after certification")
+    rlang::abort(paste(
+      "model is not sealed: certificate is invalid or the model was",
+      "modified after certification"
+    ))
   }
   n <- nrow(newdata)
 
@@ -29,9 +47,11 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   if (length(sh$batch_flagged)) {
     status[] <- "flagged"
     bar <- max(sh$effective_threshold[sh$batch_flagged], na.rm = TRUE)
-    reason[] <- sprintf("PSI %.2f > %.2f on %s",
-                        max(sh$batch_psi[sh$batch_flagged]), bar,
-                        paste(sh$batch_flagged, collapse = ", "))
+    reason[] <- sprintf(
+      "PSI %.2f > %.2f on %s",
+      max(sh$batch_psi[sh$batch_flagged]), bar,
+      paste(sh$batch_flagged, collapse = ", ")
+    )
   }
   status[sh$refused] <- "refused"
   reason[sh$refused] <- sh$refuse_reason[sh$refused]
@@ -41,12 +61,19 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   if (any(keep)) {
     type <- if (object$task == "classification") "prob" else "numeric"
     pred[keep] <- tryCatch(
-      engine_predict(object$engine, object$model, newdata[keep, , drop = FALSE], type),
+      engine_predict(
+        object$engine, object$model,
+        newdata[keep, , drop = FALSE], type
+      ),
       error = function(e) {
         if (enforce) rlang::abort(conditionMessage(e), parent = e)
-        rlang::warn(c("engine could not predict on unenforced rows; returning NA", conditionMessage(e)))
+        rlang::warn(c(
+          "engine could not predict on unenforced rows; returning NA",
+          conditionMessage(e)
+        ))
         NA_real_
-      })
+      }
+    )
   }
 
   out <- tibble::tibble(.pred = pred)
@@ -57,7 +84,9 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   } else {
     lv <- object$levels
     out$.set <- ifelse(is.na(pred), NA_character_, vapply(pred, function(p) {
-      if (is.na(p)) return(NA_character_)
+      if (is.na(p)) {
+        return(NA_character_)
+      }
       s <- c(if (p <= q) lv[1], if (1 - p <= q) lv[2])
       if (length(s) == 0) "{}" else paste0("{", paste(s, collapse = ","), "}")
     }, character(1)))
@@ -65,15 +94,19 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   out$.status <- status
   out$.shift <- sh$row_score
   out$.reason <- reason
-  structure(out, class = c("attested_prediction", class(out)),
-            certificate_id = object$certificate$id, enforced = enforce)
+  structure(out,
+    class = c("attested_prediction", class(out)),
+    certificate_id = object$certificate$id, enforced = enforce
+  )
 }
 
 shift_eval <- function(shift, newdata, features) {
   n <- nrow(newdata)
   if (is.null(shift)) {
-    return(list(batch_flagged = character(0), refused = rep(FALSE, n),
-                refuse_reason = rep(NA_character_, n), row_score = rep(0, n), threshold = NA))
+    return(list(
+      batch_flagged = character(0), refused = rep(FALSE, n),
+      refuse_reason = rep(NA_character_, n), row_score = rep(0, n), threshold = NA
+    ))
   }
   base <- shift$baseline
   n_boot <- shift$n_boot %||% 0
@@ -82,10 +115,14 @@ shift_eval <- function(shift, newdata, features) {
   conf_f <- 1 - (1 - (shift$conf %||% 0.95)) / max(1, length(features))
   out_of_support <- matrix(FALSE, n, length(features), dimnames = list(NULL, features))
   central <- matrix(FALSE, n, length(features))
-  batch_psi <- numeric(length(features)); names(batch_psi) <- features
-  psi_null <- rep(NA_real_, length(features)); names(psi_null) <- features
+  batch_psi <- numeric(length(features))
+  names(batch_psi) <- features
+  psi_null <- rep(NA_real_, length(features))
+  names(psi_null) <- features
   for (j in seq_along(features)) {
-    f <- features[j]; b <- base[[f]]; x <- newdata[[f]]
+    f <- features[j]
+    b <- base[[f]]
+    x <- newdata[[f]]
     if (b$type == "numeric") {
       out_of_support[, j] <- !is.na(x) & (x < b$support[1] | x > b$support[2])
       br <- b$breaks
@@ -116,20 +153,29 @@ shift_eval <- function(shift, newdata, features) {
   refuse_reason <- rep(NA_character_, n)
   if (any(refused)) {
     refuse_reason[refused] <- vapply(which(refused), function(i) {
-      sprintf("outside training support: %s", paste(features[out_of_support[i, ]], collapse = ", "))
+      sprintf(
+        "outside training support: %s",
+        paste(features[out_of_support[i, ]], collapse = ", ")
+      )
     }, character(1))
   }
   flagged <- names(batch_psi)[batch_psi > effective]
-  list(batch_flagged = flagged,
-       refused = refused, refuse_reason = refuse_reason,
-       row_score = rowMeans(central), threshold = shift$threshold,
-       batch_psi = batch_psi, psi_null = psi_null,
-       effective_threshold = stats::setNames(effective, features))
+  list(
+    batch_flagged = flagged,
+    refused = refused, refuse_reason = refuse_reason,
+    row_score = rowMeans(central), threshold = shift$threshold,
+    batch_psi = batch_psi, psi_null = psi_null,
+    effective_threshold = stats::setNames(effective, features)
+  )
 }
 
 #' @export
 print.attested_prediction <- function(x, ...) {
-  cli::cli_text("# attested_prediction: {nrow(x)} row{?s}, certificate {attr(x, 'certificate_id')}{if (!isTRUE(attr(x, 'enforced'))) ' (NOT enforced)' else ''}")
+  cert <- attr(x, "certificate_id")
+  note <- if (isTRUE(attr(x, "enforced"))) "" else " (NOT enforced)"
+  cli::cli_text(
+    "# attested_prediction: {nrow(x)} row{?s}, certificate {cert}{note}"
+  )
   tab <- table(factor(x$.status, levels = c("valid", "flagged", "refused")))
   cli::cli_text("{paste(names(tab), tab, sep = ': ', collapse = ' | ')}")
   NextMethod()
@@ -145,6 +191,12 @@ print.attested_prediction <- function(x, ...) {
 #' @param x An `attested_model`.
 #' @param file Optional path; if `NULL` the Markdown text is returned.
 #' @return Invisibly, the Markdown text (a character vector of lines).
+#' @examples
+#' set.seed(1)
+#' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
+#' d$y <- factor(rbinom(1000, 1, plogis(d$x1 - d$x2)))
+#' m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+#' cat(report(m)[1:8], sep = "\n")
 #' @export
 report <- function(x, file = NULL) {
   stopifnot(inherits(x, "attested_model"))
@@ -152,13 +204,24 @@ report <- function(x, file = NULL) {
   lines <- c(
     sprintf("# Model card: %s (%s)", ce$outcome, ce$task),
     "",
-    sprintf("Certificate `%s`, issued %s UTC, status **%s** (on_fail = `%s`), attest %s.",
-            ce$id, ce$issued, ce$status, ce$on_fail, ce$attest_version),
+    sprintf(
+      "Certificate `%s`, issued %s UTC, status **%s** (on_fail = `%s`), attest %s.",
+      ce$id, ce$issued, ce$status, ce$on_fail, ce$attest_version
+    ),
     "",
     sprintf("- Engine: `%s`", ce$engine),
-    sprintf("- Split: `%s` -- train %d / calib %d / test %d", ce$split, ce$n["train"], ce$n["calib"], ce$n["test"]),
-    sprintf("- Features (%d): %s", length(ce$features), paste0("`", ce$features, "`", collapse = ", ")),
-    sprintf("- Hashes: data `%s`, model `%s`", substr(ce$hashes$data, 1, 12), substr(ce$hashes$model, 1, 12)),
+    sprintf(
+      "- Split: `%s` -- train %d / calib %d / test %d",
+      ce$split, ce$n["train"], ce$n["calib"], ce$n["test"]
+    ),
+    sprintf(
+      "- Features (%d): %s",
+      length(ce$features), paste0("`", ce$features, "`", collapse = ", ")
+    ),
+    sprintf(
+      "- Hashes: data `%s`, model `%s`",
+      substr(ce$hashes$data, 1, 12), substr(ce$hashes$model, 1, 12)
+    ),
     "",
     "## Checks",
     "",
@@ -167,31 +230,74 @@ report <- function(x, file = NULL) {
   )
   for (r in ce$results) {
     ci <- r$ci
-    ci_txt <- if (is.null(ci) || length(ci) != 2 || anyNA(ci)) ""
-              else sprintf("[%s, %s]", fmt_num(ci[1]), fmt_num(ci[2]))
-    lines <- c(lines, sprintf("| %s | %s | %s | %s | %s | %s |", r$id,
-                              switch(r$status, fail = "**FAIL**",
-                                     weak = "_weak_", r$status),
-                              fmt_num(r$statistic), ci_txt,
-                              fmt_num(r$threshold), r$message))
+    ci_txt <- if (is.null(ci) || length(ci) != 2 || anyNA(ci)) {
+      ""
+    } else {
+      sprintf("[%s, %s]", fmt_num(ci[1]), fmt_num(ci[2]))
+    }
+    lines <- c(lines, sprintf(
+      "| %s | %s | %s | %s | %s | %s |", r$id,
+      switch(r$status,
+        fail = "**FAIL**",
+        weak = "_weak_",
+        r$status
+      ),
+      fmt_num(r$statistic), ci_txt,
+      fmt_num(r$threshold), r$message
+    ))
   }
   if (!is.null(ce$waivers)) {
-    lines <- c(lines, "", "## Waivers", "",
-               sprintf("> **%s** waived. Reason given: \"%s\"", paste(ce$waivers$ids, collapse = ", "), ce$waivers$reason))
+    lines <- c(
+      lines, "", "## Waivers", "",
+      sprintf(
+        "> **%s** waived. Reason given: \"%s\"",
+        paste(ce$waivers$ids, collapse = ", "), ce$waivers$reason
+      )
+    )
   }
   if (!is.null(x$conformal)) {
     cov_ci <- x$conformal$coverage_ci
-    cov_txt <- if (is.null(cov_ci) || anyNA(cov_ci)) "" else
-      sprintf(" Measured coverage interval [%s, %s] reflects test-set sampling noise only; the calibration quantile is treated as fixed.",
-              fmt_num(cov_ci[1]), fmt_num(cov_ci[2]))
-    lines <- c(lines, "", "## Prediction guarantee", "",
-               sprintf("Split conformal, alpha = %.2f, calibrated on %d rows, quantile %s. Coverage is marginal (on average over exchangeable data), not conditional on any row.%s",
-                       x$conformal$alpha, x$conformal$n_calib, fmt_num(x$conformal$q), cov_txt))
+    cov_txt <- if (is.null(cov_ci) || anyNA(cov_ci)) {
+      ""
+    } else {
+      sprintf(
+        paste(
+          " Measured coverage interval [%s, %s] reflects test-set sampling",
+          "noise only; the calibration quantile is treated as fixed."
+        ),
+        fmt_num(cov_ci[1]), fmt_num(cov_ci[2])
+      )
+    }
+    lines <- c(
+      lines, "", "## Prediction guarantee", "",
+      sprintf(
+        paste(
+          "Split conformal, alpha = %.2f, calibrated on %d rows,",
+          "quantile %s. Coverage is marginal (on average over",
+          "exchangeable data), not conditional on any row.%s"
+        ),
+        x$conformal$alpha, x$conformal$n_calib, fmt_num(x$conformal$q), cov_txt
+      )
+    )
   }
-  lines <- c(lines, "", "## Refusal policy", "",
-             "Rows with any numeric feature outside the training support (widened by tolerance) or an unseen categorical level are refused. Batches with feature PSI above the threshold are flagged.")
+  lines <- c(
+    lines, "", "## Refusal policy", "",
+    paste(
+      "Rows with any numeric feature outside the training support (widened",
+      "by tolerance) or an unseen categorical level are refused. Batches",
+      "with feature PSI above the threshold are flagged."
+    )
+  )
   if (!is.null(file)) writeLines(lines, file)
   invisible(lines)
 }
 
-fmt_num <- function(v) if (is.na(v)) "" else if (is.infinite(v)) "Inf" else formatC(v, digits = 3, format = "f")
+fmt_num <- function(v) {
+  if (is.na(v)) {
+    ""
+  } else if (is.infinite(v)) {
+    "Inf"
+  } else {
+    formatC(v, digits = 3, format = "f")
+  }
+}

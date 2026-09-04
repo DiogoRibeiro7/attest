@@ -6,3 +6,4 @@
 ^cran-comments\.md$
 ^design/
 ^\.zenodo\.json$
+^\.lintr$

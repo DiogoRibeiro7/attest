@@ -23,3 +23,8 @@ not an estimate of a population quantity: if a training row appears in the
 test set, it is there, and resampling would only describe a hypothetical
 other dataset. The same reasoning applies to \code{\link[=leak_temporal]{leak_temporal()}}.
 }
+\examples{
+leak_duplicates()
+# tolerate a small overlap
+leak_duplicates(max_prop = 0.01)
+}

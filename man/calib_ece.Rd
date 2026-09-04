@@ -23,3 +23,7 @@ confidence interval over test rows and the verdict follows
 \code{\link[=attest_verdict]{attest_verdict()}}: the check fails only when the whole interval sits above
 \code{max}, and is \code{"weak"} when the interval straddles it.
 }
+\examples{
+calib_ece()
+calib_ece(max = 0.05, bins = 20)
+}

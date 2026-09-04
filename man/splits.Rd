@@ -30,3 +30,8 @@ An object of class \code{attest_split}.
 \description{
 A split returns integer row indices for \code{train}, \code{calib} and \code{test}.
 }
+\examples{
+split_random(prop = 0.25, calib = 0.2)
+split_grouped("customer_id")
+split_temporal("order_date", prop = 0.3)
+}

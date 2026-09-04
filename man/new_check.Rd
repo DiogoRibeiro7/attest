@@ -25,3 +25,13 @@ Checks are the extension point of attest. A check is a function
 \code{model}, \code{task}, \code{outcome}, \code{features}, \code{spec} and returning an
 \code{\link[=attest_result]{attest_result()}}.
 }
+\examples{
+# a check that refuses training data with too many missing cells
+max_missing <- new_check("max_missing", stage = "pre", run = function(ctx) {
+  prop <- mean(is.na(ctx$train[ctx$features]))
+  attest_result("max_missing", if (prop <= 0.05) "pass" else "fail",
+    statistic = prop, threshold = 0.05
+  )
+})
+max_missing
+}

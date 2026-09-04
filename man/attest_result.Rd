@@ -44,6 +44,8 @@ the check neither confidently passed nor confidently failed. See
 \code{\link[=attest_verdict]{attest_verdict()}}.
 }
 \examples{
-attest_result("my_check", "weak", statistic = 0.04,
-              threshold = 0.05, ci = c(0.02, 0.09))
+attest_result("my_check", "weak",
+  statistic = 0.04,
+  threshold = 0.05, ci = c(0.02, 0.09)
+)
 }

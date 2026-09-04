@@ -20,3 +20,7 @@ An object of class \code{attest_engine}.
 An engine is a thin adapter around a modelling function. Three generics
 define the interface: \code{\link[=engine_fit]{engine_fit()}} and \code{\link[=engine_predict]{engine_predict()}}.
 }
+\examples{
+engine_glm()
+engine_glm(weights = NULL)
+}

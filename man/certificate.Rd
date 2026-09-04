@@ -28,3 +28,13 @@ unseal(x)
 \description{
 Inspect and verify certificates
 }
+\examples{
+set.seed(1)
+d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
+d$y <- factor(rbinom(1000, 1, plogis(d$x1 - d$x2)))
+m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+certificate(m)
+is_sealed(m)
+verify(m)
+class(unseal(m))
+}

@@ -5,6 +5,9 @@
 #'
 #' @param ... Arguments passed to the underlying fitting function.
 #' @return An object of class `attest_engine`.
+#' @examples
+#' engine_glm()
+#' engine_glm(weights = NULL)
 #' @name engines
 NULL
 
@@ -36,6 +39,12 @@ print.attest_engine <- function(x, ...) {
 #' @param data Training data.
 #' @param task `"classification"` or `"regression"`.
 #' @return A fitted object.
+#' @examples
+#' set.seed(1)
+#' d <- data.frame(x = rnorm(400))
+#' d$y <- factor(rbinom(400, 1, plogis(d$x)))
+#' fit <- engine_fit(engine_glm(), y ~ x, d, "classification")
+#' class(fit)
 #' @export
 engine_fit <- function(engine, formula, data, task) UseMethod("engine_fit")
 
@@ -46,6 +55,12 @@ engine_fit <- function(engine, formula, data, task) UseMethod("engine_fit")
 #' @param newdata Data to predict on.
 #' @param type `"prob"` (probability of the second factor level) or `"numeric"`.
 #' @return A numeric vector.
+#' @examples
+#' set.seed(1)
+#' d <- data.frame(x = rnorm(400))
+#' d$y <- factor(rbinom(400, 1, plogis(d$x)))
+#' fit <- engine_fit(engine_glm(), y ~ x, d, "classification")
+#' head(engine_predict(engine_glm(), fit, d, type = "prob"))
 #' @export
 engine_predict <- function(engine, object, newdata, type = c("prob", "numeric")) {
   UseMethod("engine_predict")
@@ -54,7 +69,10 @@ engine_predict <- function(engine, object, newdata, type = c("prob", "numeric"))
 #' @export
 engine_fit.engine_glm <- function(engine, formula, data, task) {
   fam <- if (task == "classification") stats::binomial() else stats::gaussian()
-  fit <- do.call(stats::glm, c(list(formula = formula, data = data, family = fam), engine$args))
+  fit <- do.call(
+    stats::glm,
+    c(list(formula = formula, data = data, family = fam), engine$args)
+  )
   fit$call <- quote(attest::engine_fit())
   fit
 }
@@ -92,6 +110,10 @@ engine_predict.engine_ranger <- function(engine, object, newdata, type = c("prob
 #'   partition.
 #' @param time Name of a time column; the latest rows become the test set.
 #' @return An object of class `attest_split`.
+#' @examples
+#' split_random(prop = 0.25, calib = 0.2)
+#' split_grouped("customer_id")
+#' split_temporal("order_date", prop = 0.3)
 #' @name splits
 NULL
 
@@ -108,7 +130,10 @@ split_random <- function(prop = 0.2, calib = 0.2) {
 #' @rdname splits
 #' @export
 split_grouped <- function(group, prop = 0.2, calib = 0.2) {
-  new_split("split_grouped", group = group, prop = prop, calib = calib, class = "split_grouped")
+  new_split(
+    "split_grouped",
+    group = group, prop = prop, calib = calib, class = "split_grouped"
+  )
 }
 
 #' @rdname splits

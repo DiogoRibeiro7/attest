@@ -74,3 +74,8 @@ many rows you have, because \code{threshold} declares it too small to matter. If
 you predict in large batches and want subtle movement reported, lower
 \code{threshold} -- the null calibration will still hold the false-positive rate.
 }
+\examples{
+shift_monitor()
+# skip the null calibration on a latency-sensitive prediction path
+shift_monitor(n_boot = 0)
+}

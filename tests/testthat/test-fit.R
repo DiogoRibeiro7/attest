@@ -20,10 +20,13 @@ test_that("fit issues a valid certificate and predictions carry status", {
 test_that("out-of-support rows are refused unless enforce = FALSE", {
   d <- make_data()
   m <- attest_fit(attest_spec(), y ~ x1 + x2 + g, d, engine_glm(), quiet = TRUE)
-  nd <- d[1:3, ]; nd$x1[1] <- 50; nd$x2[2] <- -60
+  nd <- d[1:3, ]
+  nd$x1[1] <- 50
+  nd$x2[2] <- -60
   p <- predict(m, nd)
   expect_equal(p$.status, c("refused", "refused", "valid"))
-  nd2 <- d[1:2, ]; nd2$g <- factor(c("zzz", "a"))
+  nd2 <- d[1:2, ]
+  nd2$g <- factor(c("zzz", "a"))
   expect_equal(predict(m, nd2)$.status, c("refused", "valid"))
   expect_true(is.na(p$.pred[1]))
   p2 <- predict(m, nd, enforce = FALSE)
@@ -33,13 +36,19 @@ test_that("out-of-support rows are refused unless enforce = FALSE", {
 
 test_that("target proxy leakage refuses certification, waiver requires reason", {
   d <- make_data()
-  d$leak <- as.integer(d$y)  # perfect proxy
-  expect_error(attest_fit(attest_spec(), y ~ x1 + leak, d, engine_glm(), quiet = TRUE),
-               "refused to issue certificate")
-  expect_error(suppressWarnings(attest_fit(attest_spec(), y ~ x1 + leak, d, engine_glm(), quiet = TRUE,
-                          waive = "leak_target_proxy")), "reason")
-  m <- suppressWarnings(attest_fit(attest_spec(), y ~ x1 + leak, d, engine_glm(), quiet = TRUE,
-                  waive = "leak_target_proxy", reason = "test"))
+  d$leak <- as.integer(d$y) # perfect proxy
+  expect_error(
+    attest_fit(attest_spec(), y ~ x1 + leak, d, engine_glm(), quiet = TRUE),
+    "refused to issue certificate"
+  )
+  expect_error(suppressWarnings(attest_fit(attest_spec(), y ~ x1 + leak, d, engine_glm(),
+    quiet = TRUE,
+    waive = "leak_target_proxy"
+  )), "reason")
+  m <- suppressWarnings(attest_fit(attest_spec(), y ~ x1 + leak, d, engine_glm(),
+    quiet = TRUE,
+    waive = "leak_target_proxy", reason = "test"
+  ))
   expect_equal(certificate(m)$waivers$ids, "leak_target_proxy")
   expect_true(any(grepl("Waivers", report(m))))
 })
@@ -47,7 +56,10 @@ test_that("target proxy leakage refuses certification, waiver requires reason", 
 test_that("on_fail = flag issues a failed certificate that cannot predict", {
   d <- make_data()
   d$leak <- as.integer(d$y)
-  m <- suppressWarnings(attest_fit(attest_spec(on_fail = "flag"), y ~ x1 + leak, d, engine_glm(), quiet = TRUE))
+  m <- suppressWarnings(attest_fit(
+    attest_spec(on_fail = "flag"), y ~ x1 + leak, d, engine_glm(),
+    quiet = TRUE
+  ))
   expect_equal(certificate(m)$status, "failed")
   expect_false(is_sealed(m))
   expect_error(predict(m, d[1:2, ]), "not sealed")
@@ -75,7 +87,11 @@ test_that("tampering with the model breaks the seal", {
 test_that("ranger engine works when available", {
   skip_if_not_installed("ranger")
   d <- make_data()
-  m <- attest_fit(attest_spec(on_fail = "flag"), y ~ x1 + x2, d, engine_ranger(num.trees = 200), quiet = TRUE)
+  m <- attest_fit(
+    attest_spec(on_fail = "flag"), y ~ x1 + x2, d,
+    engine_ranger(num.trees = 200),
+    quiet = TRUE
+  )
   expect_s3_class(m, "attested_model")
   expect_true(is.numeric(certificate(m)$results$calib_ece$statistic))
 })

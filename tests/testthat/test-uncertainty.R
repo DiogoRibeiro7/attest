@@ -59,8 +59,10 @@ test_that("checks carry a confidence interval into the certificate", {
 
 test_that("n_boot = 0 disables intervals and restores point-estimate verdicts", {
   d <- make_data()
-  spec <- attest_spec(checks = list(calib_ece(n_boot = 0), conformal_split(n_boot = 0),
-                                    shift_monitor()))
+  spec <- attest_spec(checks = list(
+    calib_ece(n_boot = 0), conformal_split(n_boot = 0),
+    shift_monitor()
+  ))
   m <- attest_fit(spec, y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
   res <- certificate(m)$results
   expect_true(all(is.na(res$calib_ece$ci)))
@@ -72,11 +74,18 @@ test_that("a straddling interval yields weak, and strict promotes it to failure"
   # with a threshold far below the interval, the whole interval clears it:
   # a confident failure, which the default on_fail = "refuse" turns into an error
   tight <- attest_spec(checks = list(calib_ece(max = 1e-4), shift_monitor()))
-  expect_error(attest_fit(tight, y ~ x1 + x2, d, engine_glm(), quiet = TRUE),
-               "refused to issue certificate")
-  m <- attest_fit(attest_spec(checks = list(calib_ece(max = 1e-4), shift_monitor()),
-                              on_fail = "flag"),
-                  y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+  expect_error(
+    attest_fit(tight, y ~ x1 + x2, d, engine_glm(), quiet = TRUE),
+    "refused to issue certificate"
+  )
+  m <- attest_fit(
+    attest_spec(
+      checks = list(calib_ece(max = 1e-4), shift_monitor()),
+      on_fail = "flag"
+    ),
+    y ~ x1 + x2, d, engine_glm(),
+    quiet = TRUE
+  )
   expect_equal(certificate(m)$results$calib_ece$status, "fail")
 
   # find a threshold that genuinely straddles
@@ -92,8 +101,10 @@ test_that("a straddling interval yields weak, and strict promotes it to failure"
   expect_true(is_sealed(mw))
 
   strict <- attest_spec(checks = list(calib_ece(max = mid), shift_monitor()), strict = TRUE)
-  expect_error(attest_fit(strict, y ~ x1 + x2, d, engine_glm(), quiet = TRUE),
-               "refused to issue certificate")
+  expect_error(
+    attest_fit(strict, y ~ x1 + x2, d, engine_glm(), quiet = TRUE),
+    "refused to issue certificate"
+  )
 })
 
 test_that("attest_result rejects a malformed interval and accepts weak", {
@@ -109,7 +120,7 @@ test_that("PSI null calibration suppresses false flags on small unshifted batche
   set.seed(9)
   flagged <- replicate(25, {
     s <- d[sample(nrow(d), 60, replace = TRUE), ]
-    any(predict(s, object = m)$.status == "flagged")
+    any(predict(m, s)$.status == "flagged")
   })
   # with a fixed 0.2 threshold this fires most of the time; calibrated it is rare
   expect_lt(mean(flagged), 0.3)

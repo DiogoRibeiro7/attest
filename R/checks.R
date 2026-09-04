@@ -18,8 +18,10 @@
 #' @param evidence Optional list of supporting objects.
 #' @return An object of class `attest_result`.
 #' @examples
-#' attest_result("my_check", "weak", statistic = 0.04,
-#'               threshold = 0.05, ci = c(0.02, 0.09))
+#' attest_result("my_check", "weak",
+#'   statistic = 0.04,
+#'   threshold = 0.05, ci = c(0.02, 0.09)
+#' )
 #' @export
 attest_result <- function(id, status, statistic = NA_real_, threshold = NA_real_,
                           ci = c(NA_real_, NA_real_), message = "",
@@ -27,9 +29,11 @@ attest_result <- function(id, status, statistic = NA_real_, threshold = NA_real_
   status <- match.arg(status, c("pass", "weak", "fail", "waived", "untestable", "info"))
   if (length(ci) != 2) rlang::abort("`ci` must have length 2")
   structure(
-    list(id = id, status = status, statistic = statistic,
-         threshold = threshold, ci = as.numeric(ci),
-         message = message, evidence = evidence),
+    list(
+      id = id, status = status, statistic = statistic,
+      threshold = threshold, ci = as.numeric(ci),
+      message = message, evidence = evidence
+    ),
     class = "attest_result"
   )
 }
@@ -52,13 +56,18 @@ attest_result <- function(id, status, statistic = NA_real_, threshold = NA_real_
 #' attest_boot(function(i) mean(y[i]), n = length(y), n_boot = 200)
 #' @export
 attest_boot <- function(stat, n, n_boot = 1000, conf = 0.95) {
-  if (n_boot < 2 || n < 2) return(c(NA_real_, NA_real_))
+  if (n_boot < 2 || n < 2) {
+    return(c(NA_real_, NA_real_))
+  }
   reps <- vapply(seq_len(n_boot), function(b) {
     tryCatch(as.numeric(stat(sample.int(n, n, replace = TRUE))),
-             error = function(e) NA_real_)
+      error = function(e) NA_real_
+    )
   }, numeric(1))
   reps <- reps[is.finite(reps)]
-  if (length(reps) < 2) return(c(NA_real_, NA_real_))
+  if (length(reps) < 2) {
+    return(c(NA_real_, NA_real_))
+  }
   a <- (1 - conf) / 2
   unname(stats::quantile(reps, c(a, 1 - a), names = FALSE, na.rm = TRUE))
 }
@@ -99,7 +108,9 @@ attest_verdict <- function(statistic, ci, threshold,
 }
 
 fmt_ci <- function(ci) {
-  if (length(ci) != 2 || anyNA(ci)) return("")
+  if (length(ci) != 2 || anyNA(ci)) {
+    return("")
+  }
   sprintf(" [%.3f, %.3f]", ci[1], ci[2])
 }
 
@@ -119,17 +130,30 @@ fmt_ci <- function(ci) {
 #' @param stage One of `"pre"` (before fitting; sees only data) or `"post"`
 #'   (after fitting; sees the model).
 #' @return An object of class `attest_check`.
+#' @examples
+#' # a check that refuses training data with too many missing cells
+#' max_missing <- new_check("max_missing", stage = "pre", run = function(ctx) {
+#'   prop <- mean(is.na(ctx$train[ctx$features]))
+#'   attest_result("max_missing", if (prop <= 0.05) "pass" else "fail",
+#'     statistic = prop, threshold = 0.05
+#'   )
+#' })
+#' max_missing
 #' @export
 new_check <- function(id, run, blocking = TRUE, stage = c("pre", "post")) {
   stage <- match.arg(stage)
   stopifnot(is.character(id), length(id) == 1, is.function(run))
   structure(list(id = id, run = run, blocking = blocking, stage = stage),
-            class = "attest_check")
+    class = "attest_check"
+  )
 }
 
 #' @export
 print.attest_check <- function(x, ...) {
-  cat("<attest_check> ", x$id, " [", x$stage, if (x$blocking) ", blocking" else "", "]\n", sep = "")
+  cat("<attest_check> ", x$id,
+    " [", x$stage, if (x$blocking) ", blocking" else "", "]\n",
+    sep = ""
+  )
   invisible(x)
 }
 
@@ -146,6 +170,10 @@ print.attest_check <- function(x, ...) {
 #' test set, it is there, and resampling would only describe a hypothetical
 #' other dataset. The same reasoning applies to [leak_temporal()].
 #' @return An `attest_check`.
+#' @examples
+#' leak_duplicates()
+#' # tolerate a small overlap
+#' leak_duplicates(max_prop = 0.01)
 #' @export
 leak_duplicates <- function(max_prop = 0) {
   new_check("leak_duplicates", stage = "pre", run = function(ctx) {
@@ -182,6 +210,10 @@ leak_duplicates <- function(max_prop = 0) {
 #' than refitting each replicate. This keeps the check affordable and captures
 #' sampling noise in the score, but not the variability of the fits themselves.
 #' @return An `attest_check`.
+#' @examples
+#' leak_target_proxy()
+#' # a stricter bar, with the interval disabled
+#' leak_target_proxy(threshold = 0.9, n_boot = 0)
 #' @export
 leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
   new_check("leak_target_proxy", stage = "pre", run = function(ctx) {
@@ -201,23 +233,32 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
       d <- data.frame(y = y, x = x)
       if (classification) {
         fit <- tryCatch(stats::glm(y ~ x, data = d, family = stats::binomial()),
-                        error = function(e) NULL, warning = function(w) NULL)
+          error = function(e) NULL, warning = function(w) NULL
+        )
         # Perfect separation cannot be fitted but is itself proxy evidence,
         # so every row counts as a hit.
-        if (is.null(fit)) return(rep(1, n))
+        if (is.null(fit)) {
+          return(rep(1, n))
+        }
         as.numeric((stats::predict(fit, type = "response") > 0.5) == yb)
       } else {
         fit <- tryCatch(stats::lm(y ~ x, data = d), error = function(e) NULL)
-        if (is.null(fit)) return(rep(mean(yb), n))
+        if (is.null(fit)) {
+          return(rep(mean(yb), n))
+        }
         as.numeric(stats::fitted(fit))
       }
     }, numeric(n))
     contrib <- matrix(contrib, nrow = n, dimnames = list(NULL, ctx$features))
 
     score_on <- function(i) {
-      if (classification) return(colMeans(contrib[i, , drop = FALSE]))
+      if (classification) {
+        return(colMeans(contrib[i, , drop = FALSE]))
+      }
       sst <- sum((yb[i] - mean(yb[i]))^2)
-      if (sst <= 0) return(rep(0, ncol(contrib)))
+      if (sst <= 0) {
+        return(rep(0, ncol(contrib)))
+      }
       sse <- colSums((yb[i] - contrib[i, , drop = FALSE])^2)
       pmax(0, 1 - sse / sst)
     }
@@ -231,10 +272,14 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
     attest_result(
       "leak_target_proxy", status,
       statistic = top, threshold = threshold, ci = ci,
-      message = if (length(bad) == 0)
+      message = if (length(bad) == 0) {
         sprintf("max single-feature score %.3f%s", top, fmt_ci(ci))
-      else sprintf("proxy features: %s (max %.3f%s)",
-                   paste(bad, collapse = ", "), top, fmt_ci(ci)),
+      } else {
+        sprintf(
+          "proxy features: %s (max %.3f%s)",
+          paste(bad, collapse = ", "), top, fmt_ci(ci)
+        )
+      },
       evidence = list(scores = scores, ci = ci)
     )
   })
@@ -246,12 +291,15 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
 #' @param max_prop Maximum tolerated proportion of test rows dated before the
 #'   last training row.
 #' @return An `attest_check`.
+#' @examples
+#' leak_temporal("order_date")
 #' @export
 leak_temporal <- function(time, max_prop = 0) {
   new_check("leak_temporal", stage = "pre", run = function(ctx) {
     if (!time %in% names(ctx$train)) {
       return(attest_result("leak_temporal", "untestable",
-                           message = sprintf("column `%s` not found", time)))
+        message = sprintf("column `%s` not found", time)
+      ))
     }
     last_train <- max(ctx$train[[time]], na.rm = TRUE)
     prop <- mean(ctx$test[[time]] < last_train, na.rm = TRUE)
@@ -269,6 +317,8 @@ leak_temporal <- function(time, max_prop = 0) {
 #' Class imbalance report (informational, never blocks)
 #'
 #' @return An `attest_check`.
+#' @examples
+#' imbalance_report()
 #' @export
 imbalance_report <- function() {
   new_check("imbalance_report", stage = "pre", blocking = FALSE, run = function(ctx) {
@@ -277,10 +327,14 @@ imbalance_report <- function() {
     }
     tab <- table(ctx$train[[ctx$outcome]])
     ratio <- min(tab) / max(tab)
-    attest_result("imbalance_report", "info", statistic = ratio,
-                  message = sprintf("minority/majority ratio %.3f (%s)", ratio,
-                                    paste(names(tab), tab, sep = "=", collapse = ", ")),
-                  evidence = list(table = tab))
+    attest_result("imbalance_report", "info",
+      statistic = ratio,
+      message = sprintf(
+        "minority/majority ratio %.3f (%s)", ratio,
+        paste(names(tab), tab, sep = "=", collapse = ", ")
+      ),
+      evidence = list(table = tab)
+    )
   })
 }
 
@@ -298,6 +352,9 @@ imbalance_report <- function() {
 #' @param n_boot Bootstrap replicates for the confidence interval; `0`
 #'   disables it and the point estimate decides.
 #' @return An `attest_check`.
+#' @examples
+#' calib_ece()
+#' calib_ece(max = 0.05, bins = 20)
 #' @export
 calib_ece <- function(max = 0.1, bins = 10, n_boot = 1000) {
   new_check("calib_ece", stage = "post", run = function(ctx) {
@@ -309,9 +366,10 @@ calib_ece <- function(max = 0.1, bins = 10, n_boot = 1000) {
     ece <- ece_stat(p, y, bins)
     ci <- attest_boot(function(i) ece_stat(p[i], y[i], bins), length(p), n_boot)
     attest_result("calib_ece",
-                  attest_verdict(ece, ci, max, "at_most"),
-                  statistic = ece, threshold = max, ci = ci,
-                  message = sprintf("ECE = %.3f%s (max %.3f)", ece, fmt_ci(ci), max))
+      attest_verdict(ece, ci, max, "at_most"),
+      statistic = ece, threshold = max, ci = ci,
+      message = sprintf("ECE = %.3f%s (max %.3f)", ece, fmt_ci(ci), max)
+    )
   })
 }
 
@@ -350,6 +408,10 @@ ece_stat <- function(p, y, bins) {
 #' calibration quantile `q` is treated as fixed, so the interval understates
 #' total uncertainty when the calibration set is small.
 #' @return An `attest_check`.
+#' @examples
+#' conformal_split()
+#' # 95% target coverage
+#' conformal_split(alpha = 0.05)
 #' @export
 conformal_split <- function(alpha = 0.1, tolerance = 0.03, n_boot = 1000) {
   new_check("conformal_split", stage = "post", run = function(ctx) {
@@ -365,8 +427,10 @@ conformal_split <- function(alpha = 0.1, tolerance = 0.03, n_boot = 1000) {
       "conformal_split",
       attest_verdict(cov, ci, 1 - alpha - tolerance, "at_least"),
       statistic = cov, threshold = 1 - alpha, ci = ci,
-      message = sprintf("empirical coverage %.3f%s (target %.3f)",
-                        cov, fmt_ci(ci), 1 - alpha),
+      message = sprintf(
+        "empirical coverage %.3f%s (target %.3f)",
+        cov, fmt_ci(ci), 1 - alpha
+      ),
       evidence = list(q = q, alpha = alpha, n_calib = n, coverage_ci = ci)
     )
   })
@@ -435,6 +499,10 @@ conformal_scores <- function(engine, model, data, outcome, task) {
 #' you predict in large batches and want subtle movement reported, lower
 #' `threshold` -- the null calibration will still hold the false-positive rate.
 #' @return An `attest_check`.
+#' @examples
+#' shift_monitor()
+#' # skip the null calibration on a latency-sensitive prediction path
+#' shift_monitor(n_boot = 0)
 #' @export
 shift_monitor <- function(threshold = 0.2, bins = 10, support_tol = 0.05,
                           min_batch = 50, n_boot = 500, conf = 0.95) {
@@ -442,13 +510,18 @@ shift_monitor <- function(threshold = 0.2, bins = 10, support_tol = 0.05,
     baseline <- lapply(ctx$features, function(f) {
       x <- ctx$train[[f]]
       if (is.numeric(x)) {
-        br <- unique(stats::quantile(x, probs = seq(0, 1, length.out = bins + 1), na.rm = TRUE))
+        br <- unique(stats::quantile(
+          x,
+          probs = seq(0, 1, length.out = bins + 1), na.rm = TRUE
+        ))
         if (length(br) < 2) br <- c(min(x), max(x) + 1e-8)
         freq <- as.numeric(table(cut(x, br, include.lowest = TRUE))) / length(x)
         rng <- range(x, na.rm = TRUE)
         pad <- support_tol * diff(rng)
-        list(type = "numeric", breaks = br, freq = freq,
-             support = c(rng[1] - pad, rng[2] + pad))
+        list(
+          type = "numeric", breaks = br, freq = freq,
+          support = c(rng[1] - pad, rng[2] + pad)
+        )
       } else {
         lv <- levels(as.factor(x))
         freq <- as.numeric(table(factor(x, levels = lv))) / length(x)
@@ -456,16 +529,21 @@ shift_monitor <- function(threshold = 0.2, bins = 10, support_tol = 0.05,
       }
     })
     names(baseline) <- ctx$features
-    attest_result("shift_monitor", "info", threshold = threshold,
-                  message = "baseline stored",
-                  evidence = list(baseline = baseline, threshold = threshold,
-                                  min_batch = min_batch, n_boot = n_boot,
-                                  conf = conf))
+    attest_result("shift_monitor", "info",
+      threshold = threshold,
+      message = "baseline stored",
+      evidence = list(
+        baseline = baseline, threshold = threshold,
+        min_batch = min_batch, n_boot = n_boot,
+        conf = conf
+      )
+    )
   })
 }
 
 psi <- function(expected, actual, eps = 1e-4) {
-  e <- pmax(expected, eps); a <- pmax(actual, eps)
+  e <- pmax(expected, eps)
+  a <- pmax(actual, eps)
   sum((a - e) * log(a / e))
 }
 
@@ -478,10 +556,14 @@ psi <- function(expected, actual, eps = 1e-4) {
 # nothing has changed. Sampling counts from the baseline multinomial costs
 # O(n_boot * bins) and is independent of batch size.
 psi_null_quantile <- function(freq, n, n_boot = 200, conf = 0.95) {
-  if (n_boot < 2 || n < 1 || anyNA(freq)) return(NA_real_)
+  if (n_boot < 2 || n < 1 || anyNA(freq)) {
+    return(NA_real_)
+  }
   counts <- stats::rmultinom(n_boot, size = n, prob = freq)
   vals <- apply(counts, 2, function(cc) psi(freq, cc / n))
   vals <- vals[is.finite(vals)]
-  if (!length(vals)) return(NA_real_)
+  if (!length(vals)) {
+    return(NA_real_)
+  }
   unname(stats::quantile(vals, conf, names = FALSE))
 }
