@@ -4,10 +4,20 @@
 \name{attest-package}
 \alias{attest}
 \alias{attest-package}
-\title{attest: fail-closed machine learning}
+\title{attest: Fail-Closed Machine Learning with Model Certificates}
 \description{
-Models that carry their own proof of validity. See \code{\link[=attest_spec]{attest_spec()}},
-\code{\link[=attest_fit]{attest_fit()}}, \code{\link[=predict.attested_model]{predict.attested_model()}} and \code{\link[=report]{report()}}.
+Fit predictive models that carry an immutable certificate of validity.
+\code{attest} runs leakage, calibration, conformal coverage and distribution
+shift checks at fit time, stores the results inside the model object, and
+binds the certificate to the training data by hash. Predictions include an
+interval and a validity status, and are refused by default when new inputs
+fall outside the certified support. Reports are rendered from the
+certificate so model cards stay tied to the fitted object.
+}
+\details{
+Start with \code{\link[=attest_spec]{attest_spec()}} to configure checks, \code{\link[=attest_fit]{attest_fit()}} to train and
+certify a model, \code{\link[=predict.attested_model]{predict.attested_model()}} to make fail-closed predictions,
+and \code{\link[=report]{report()}} to render a model card.
 }
 \seealso{
 Useful links:

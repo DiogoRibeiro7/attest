@@ -398,6 +398,12 @@ ece_stat <- function(p, y, bins) {
 #'   `1 - alpha` before the check fails.
 #' @param n_boot Bootstrap replicates for the coverage confidence interval;
 #'   `0` disables it and the point estimate decides.
+#' @param weighted If `TRUE`, store the calibration scores and covariates in
+#'   the certificate so that [predict.attested_model()] can reweight them by an
+#'   estimated covariate density ratio, widening intervals on batches that have
+#'   drifted. See [attest_weighted_quantile()] for the guarantee this targets
+#'   and its limits. The stored calibration set is what makes the certificate
+#'   larger, so this is off by default.
 #' @details
 #' Empirical coverage is a sample statistic and scatters around its target, so
 #' it is reported with a bootstrap confidence interval over test rows. The
@@ -413,7 +419,8 @@ ece_stat <- function(p, y, bins) {
 #' # 95% target coverage
 #' conformal_split(alpha = 0.05)
 #' @export
-conformal_split <- function(alpha = 0.1, tolerance = 0.03, n_boot = 1000) {
+conformal_split <- function(alpha = 0.1, tolerance = 0.03, n_boot = 1000,
+                            weighted = FALSE) {
   new_check("conformal_split", stage = "post", run = function(ctx) {
     scores <- conformal_scores(ctx$engine, ctx$model, ctx$calib, ctx$outcome, ctx$task)
     n <- length(scores)
@@ -423,15 +430,24 @@ conformal_split <- function(alpha = 0.1, tolerance = 0.03, n_boot = 1000) {
     covered <- test_scores <= q
     cov <- mean(covered)
     ci <- attest_boot(function(i) mean(covered[i]), length(covered), n_boot)
+    evidence <- list(q = q, alpha = alpha, n_calib = n, coverage_ci = ci)
+    if (isTRUE(weighted)) {
+      # Reweighting at prediction time needs the calibration scores and the
+      # covariates they came from, not just the quantile they produced.
+      evidence$weighted <- TRUE
+      evidence$calib_scores <- scores
+      evidence$calib_x <- ctx$calib[, ctx$features, drop = FALSE]
+    }
     attest_result(
       "conformal_split",
       attest_verdict(cov, ci, 1 - alpha - tolerance, "at_least"),
       statistic = cov, threshold = 1 - alpha, ci = ci,
       message = sprintf(
-        "empirical coverage %.3f%s (target %.3f)",
-        cov, fmt_ci(ci), 1 - alpha
+        "empirical coverage %.3f%s (target %.3f)%s",
+        cov, fmt_ci(ci), 1 - alpha,
+        if (isTRUE(weighted)) ", reweighted at predict time" else ""
       ),
-      evidence = list(q = q, alpha = alpha, n_calib = n, coverage_ci = ci)
+      evidence = evidence
     )
   })
 }

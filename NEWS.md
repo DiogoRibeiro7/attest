@@ -25,3 +25,19 @@
   so the stated rate applies to the batch. Sampling from the baseline
   multinomial is independent of batch size, which also cuts the cost of
   predicting on 50,000 rows from 3.5 s to 0.25 s.
+* `conformal_split(weighted = TRUE)` reweights the calibration scores at
+  prediction time by an estimated covariate density ratio, following
+  Tibshirani et al. (2019), so intervals widen on drifted batches instead of
+  only being flagged. On a heteroscedastic problem shifted by 1.5 SD, a fixed
+  quantile covers 0.74 against a 0.90 target while the reweighted intervals
+  cover 0.95; on unshifted data the two agree, because the weighted quantile
+  reduces exactly to the ordinary one when every weight is 1. `.status` keeps
+  its meaning -- `"flagged"` still reports that the batch moved -- and the
+  estimated ratio is returned in a new `.weight` column. Rows whose reweighted
+  quantile is infinite are refused rather than given an unbounded interval.
+  This corrects covariate shift only: it does nothing for label shift or
+  concept drift, and with an estimated ratio the coverage is approximate.
+* `attest_density_ratio()` and `attest_weighted_quantile()` are exported for
+  use outside the package.
+* `print()` on an `attested_prediction` no longer warns when the object has
+  been subset to drop the `.status` column.

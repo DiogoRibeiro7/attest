@@ -27,6 +27,18 @@ Returns an \code{attested_prediction}: a tibble with \code{.pred}, an interval
 score (share of features outside the central training range) and a
 \code{.reason}. Refused rows have \code{NA} predictions unless \code{enforce = FALSE}.
 }
+\details{
+When the model was fitted with \code{conformal_split(weighted = TRUE)} the
+interval is not fixed. Calibration scores are reweighted by an estimated
+covariate density ratio between the calibration set and this batch, so each
+row gets its own quantile and intervals widen on drifted input. The estimated
+ratio is returned in a \code{.weight} column.
+
+\code{.status} keeps its meaning throughout: \code{"flagged"} still reports that the
+batch moved, not that the interval changed. A row whose reweighted quantile
+is infinite -- the calibration set holds no comparable evidence -- is
+refused, with reason \code{"no conformal evidence after reweighting"}.
+}
 \examples{
 set.seed(1)
 d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))

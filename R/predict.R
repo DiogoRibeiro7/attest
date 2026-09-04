@@ -6,6 +6,18 @@
 #' score (share of features outside the central training range) and a
 #' `.reason`. Refused rows have `NA` predictions unless `enforce = FALSE`.
 #'
+#' @details
+#' When the model was fitted with `conformal_split(weighted = TRUE)` the
+#' interval is not fixed. Calibration scores are reweighted by an estimated
+#' covariate density ratio between the calibration set and this batch, so each
+#' row gets its own quantile and intervals widen on drifted input. The estimated
+#' ratio is returned in a `.weight` column.
+#'
+#' `.status` keeps its meaning throughout: `"flagged"` still reports that the
+#' batch moved, not that the interval changed. A row whose reweighted quantile
+#' is infinite -- the calibration set holds no comparable evidence -- is
+#' refused, with reason `"no conformal evidence after reweighting"`.
+#'
 #' @param object An `attested_model`.
 #' @param newdata Data to predict on.
 #' @param enforce If `FALSE`, refused rows still receive predictions (status is
@@ -76,23 +88,37 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
     )
   }
 
+  wq <- weighted_q(object$conformal, newdata, object$features)
+  q <- wq$q
+  # An infinite quantile means the calibration set carries no usable evidence
+  # for that row, so there is no interval to return: refuse it like any other
+  # row outside the certified support.
+  if (any(is.infinite(q))) {
+    gone <- is.infinite(q) & status != "refused"
+    status[gone] <- "refused"
+    reason[gone] <- "no conformal evidence after reweighting"
+    if (enforce) pred[gone] <- NA_real_
+  }
+
   out <- tibble::tibble(.pred = pred)
-  q <- object$conformal$q
   if (object$task == "regression") {
     out$.lower <- pred - q
     out$.upper <- pred + q
   } else {
     lv <- object$levels
-    out$.set <- ifelse(is.na(pred), NA_character_, vapply(pred, function(p) {
+    out$.set <- vapply(seq_along(pred), function(i) {
+      p <- pred[i]
       if (is.na(p)) {
         return(NA_character_)
       }
-      s <- c(if (p <= q) lv[1], if (1 - p <= q) lv[2])
+      qi <- q[i]
+      s <- c(if (p <= qi) lv[1], if (1 - p <= qi) lv[2])
       if (length(s) == 0) "{}" else paste0("{", paste(s, collapse = ","), "}")
-    }, character(1)))
+    }, character(1))
   }
   out$.status <- status
   out$.shift <- sh$row_score
+  if (!is.null(wq$weight)) out$.weight <- wq$weight
   out$.reason <- reason
   structure(out,
     class = c("attested_prediction", class(out)),
@@ -171,13 +197,17 @@ shift_eval <- function(shift, newdata, features) {
 
 #' @export
 print.attested_prediction <- function(x, ...) {
-  cert <- attr(x, "certificate_id")
-  note <- if (isTRUE(attr(x, "enforced"))) "" else " (NOT enforced)"
-  cli::cli_text(
-    "# attested_prediction: {nrow(x)} row{?s}, certificate {cert}{note}"
-  )
-  tab <- table(factor(x$.status, levels = c("valid", "flagged", "refused")))
-  cli::cli_text("{paste(names(tab), tab, sep = ': ', collapse = ' | ')}")
+  # Subsetting keeps the class but may drop `.status`, so the header is only
+  # printed when the column it summarises is still present.
+  if (".status" %in% names(x)) {
+    cert <- attr(x, "certificate_id")
+    note <- if (isTRUE(attr(x, "enforced"))) "" else " (NOT enforced)"
+    cli::cli_text(
+      "# attested_prediction: {nrow(x)} row{?s}, certificate {cert}{note}"
+    )
+    tab <- table(factor(x$.status, levels = c("valid", "flagged", "refused")))
+    cli::cli_text("{paste(names(tab), tab, sep = ': ', collapse = ' | ')}")
+  }
   NextMethod()
 }
 

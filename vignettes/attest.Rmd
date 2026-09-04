@@ -268,6 +268,87 @@ small batches. So the null is simulated instead, drawing batches of the
 observed size from the stored training frequencies, and a feature is flagged
 only when it beats both that null and the effect-size threshold.
 
+## Widening the interval instead of only warning
+
+Flagging a drifted batch tells the caller something is wrong but still hands
+back an interval calibrated on data that no longer resembles the input. When
+the covariate distribution has moved but the relationship between covariates
+and outcome has not, that is repairable: reweight the calibration scores by the
+density ratio between the calibration set and the incoming batch (Tibshirani et
+al., 2019).
+
+Turn it on with `conformal_split(weighted = TRUE)`, which stores the
+calibration scores and covariates in the certificate so `predict()` can
+reweight them:
+
+```{r}
+gen <- function(n, mu = 0) {
+  x1 <- rnorm(n, mu)
+  x2 <- rnorm(n)
+  data.frame(x1 = x1, x2 = x2, y = 2 * x1 - x2 + rnorm(n, sd = 0.4 + abs(x1)))
+}
+train <- gen(4000)
+
+weighted <- attest_spec(checks = list(
+  conformal_split(weighted = TRUE), shift_monitor()
+))
+plain <- attest_spec(checks = list(conformal_split(), shift_monitor()))
+mw <- attest_fit(weighted, y ~ x1 + x2, train, engine_glm(), quiet = TRUE)
+mp <- attest_fit(plain, y ~ x1 + x2, train, engine_glm(), quiet = TRUE)
+```
+
+The residual spread here grows with `x1`, so a batch drawn from larger `x1` is
+genuinely harder to predict and a fixed calibration quantile is too narrow:
+
+```{r}
+coverage <- function(m, nd) {
+  p <- predict(m, nd, enforce = FALSE)
+  ok <- is.finite(p$.lower) & is.finite(p$.upper)
+  c(
+    coverage = mean(nd$y[ok] >= p$.lower[ok] & nd$y[ok] <= p$.upper[ok]),
+    width = mean(p$.upper[ok] - p$.lower[ok])
+  )
+}
+shifted <- gen(1500, mu = 1.5)
+round(rbind(plain = coverage(mp, shifted), weighted = coverage(mw, shifted)), 3)
+```
+
+The fixed quantile falls well short of its 0.90 target on shifted input while
+reporting the same width it always reports. The reweighted intervals widen and
+recover coverage. On an unshifted batch the two agree, because every weight is
+near 1 and the weighted quantile reduces exactly to the ordinary one:
+
+```{r}
+round(rbind(
+  plain = coverage(mp, gen(1500)),
+  weighted = coverage(mw, gen(1500))
+), 3)
+```
+
+The estimated density ratio is returned per row, so you can see which inputs
+the model considers unusual. Like PSI, it is a property estimated *from the
+batch*: hand `predict()` a handful of rows and there is nothing to compare the
+calibration set against, so every weight falls back to 1 and the interval
+reverts to the fixed quantile.
+
+```{r}
+p <- predict(mw, shifted)
+p[1:5, c(".pred", ".lower", ".upper", ".weight")]
+```
+
+Weights rise with `x1`, which is exactly where this batch has moved and where
+the residuals are widest:
+
+```{r}
+tapply(p$.weight, cut(shifted$x1, c(-Inf, 0, 1, 2, 3, Inf)), mean)
+```
+
+`.status` keeps its meaning: `"flagged"` still says the batch moved, not that
+the interval changed. What reweighting adds is that the interval has already
+responded. A row whose weight is large relative to the whole calibration set
+gets an infinite quantile -- no finite interval is justified -- and is refused
+rather than returned as unbounded.
+
 ## The model card
 
 `report()` renders Markdown entirely from the certificate, so it cannot drift
@@ -305,13 +386,26 @@ sets containing every class. Coverage tells you the procedure is valid; only
 sharpness -- interval width, or the quantile `q` -- tells you it is useful. Read
 the two together or neither means anything.
 
-**Exchangeability is the whole assumption, and shift breaks it.** The conformal
-guarantee holds when calibration and future data are exchangeable. Under
-distribution shift it is simply void -- not degraded in a quantified way, void.
-This is the honest reason attest refuses out-of-support rows: refusal is not an
-extra safety feature layered on top of the guarantee, it is an admission that
-outside the training support **there is no guarantee left to offer**. The
+**Exchangeability is the whole assumption, and shift breaks it.** The plain
+conformal guarantee holds when calibration and future data are exchangeable.
+Under distribution shift it is simply void -- not degraded in a quantified way,
+void. This is the honest reason attest refuses out-of-support rows: refusal is
+not an extra safety feature layered on top of the guarantee, it is an admission
+that outside the training support **there is no guarantee left to offer**. The
 refusal and the interval are two halves of one claim.
+
+**Reweighting buys back one kind of shift, not all of them.**
+`conformal_split(weighted = TRUE)` restores an approximate guarantee under
+*covariate* shift, where the covariate distribution moved but the relationship
+between covariates and outcome did not. It does nothing for label shift or
+concept drift -- if the relationship itself changed, reweighted intervals are
+not merely uncorrected but actively misleading, because they look adjusted. And
+the guarantee assumes the density ratio is known; attest estimates it from the
+batch, so coverage is approximate. Under strong shift the weighted calibration
+set has a small effective sample size, a handful of scores carry the quantile,
+and the result is noisy and conservative -- the table above shows over-coverage
+setting in well before the method breaks. Treat a widened interval as a better
+answer than one that ignores the shift, not as a restored guarantee.
 
 **Support is checked marginally, not jointly.** A row is refused when a feature
 falls outside its own training range. A row can sit comfortably inside every

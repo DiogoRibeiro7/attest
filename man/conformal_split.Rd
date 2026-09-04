@@ -4,7 +4,7 @@
 \alias{conformal_split}
 \title{Coverage check: split conformal prediction}
 \usage{
-conformal_split(alpha = 0.1, tolerance = 0.03, n_boot = 1000)
+conformal_split(alpha = 0.1, tolerance = 0.03, n_boot = 1000, weighted = FALSE)
 }
 \arguments{
 \item{alpha}{Miscoverage level; target coverage is \code{1 - alpha}.}
@@ -14,6 +14,13 @@ conformal_split(alpha = 0.1, tolerance = 0.03, n_boot = 1000)
 
 \item{n_boot}{Bootstrap replicates for the coverage confidence interval;
 \code{0} disables it and the point estimate decides.}
+
+\item{weighted}{If \code{TRUE}, store the calibration scores and covariates in
+the certificate so that \code{\link[=predict.attested_model]{predict.attested_model()}} can reweight them by an
+estimated covariate density ratio, widening intervals on batches that have
+drifted. See \code{\link[=attest_weighted_quantile]{attest_weighted_quantile()}} for the guarantee this targets
+and its limits. The stored calibration set is what makes the certificate
+larger, so this is off by default.}
 }
 \value{
 An \code{attest_check}.
