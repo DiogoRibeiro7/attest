@@ -17,8 +17,9 @@ attest_fit(
 \arguments{
 \item{spec}{An \code{\link[=attest_spec]{attest_spec()}}.}
 
-\item{formula}{Model formula. The outcome must be numeric (regression),
-logical, or a two-level factor (binary classification).}
+\item{formula}{Model formula. The outcome sets the task: numeric gives
+regression, a logical or two-level factor gives binary classification,
+and a factor with more than two levels gives multiclass.}
 
 \item{data}{A data frame.}
 

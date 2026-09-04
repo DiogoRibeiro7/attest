@@ -59,20 +59,31 @@ infer_task <- function(y) {
   if (is.logical(y)) {
     return("classification")
   }
-  if (is.factor(y) && nlevels(y) == 2) {
-    return("classification")
+  if (is.factor(y)) {
+    if (nlevels(y) == 2) {
+      return("classification")
+    }
+    if (nlevels(y) > 2) {
+      return("multiclass")
+    }
+    rlang::abort("outcome factor has fewer than two levels")
   }
   if (is.numeric(y)) {
     return("regression")
   }
-  rlang::abort("outcome must be numeric, logical, or a two-level factor")
+  rlang::abort("outcome must be numeric, logical, or a factor")
 }
+
+# Binary and multiclass share every check; they differ only in whether the
+# engine returns one probability or a column per class.
+is_classification <- function(task) task %in% c("classification", "multiclass")
 
 #' Fit a model and issue a certificate
 #'
 #' @param spec An [attest_spec()].
-#' @param formula Model formula. The outcome must be numeric (regression),
-#'   logical, or a two-level factor (binary classification).
+#' @param formula Model formula. The outcome sets the task: numeric gives
+#'   regression, a logical or two-level factor gives binary classification,
+#'   and a factor with more than two levels gives multiclass.
 #' @param data A data frame.
 #' @param engine An engine, see [engines].
 #' @param waive Character vector of check ids to waive. Every waiver requires
@@ -205,7 +216,7 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
   structure(list(
     engine = engine, model = ctx$model, formula = formula,
     task = task, outcome = outcome, features = features,
-    levels = if (task == "classification") levels(data[[outcome]]) else NULL,
+    levels = if (is_classification(task)) levels(data[[outcome]]) else NULL,
     conformal = conf, shift = shift, c2st = c2st,
     certificate = cert
   ), class = "attested_model")

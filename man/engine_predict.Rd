@@ -4,7 +4,12 @@
 \alias{engine_predict}
 \title{Predict from an engine-fitted object}
 \usage{
-engine_predict(engine, object, newdata, type = c("prob", "numeric"))
+engine_predict(
+  engine,
+  object,
+  newdata,
+  type = c("prob", "numeric", "prob_matrix")
+)
 }
 \arguments{
 \item{engine}{An \code{attest_engine}.}
@@ -13,7 +18,9 @@ engine_predict(engine, object, newdata, type = c("prob", "numeric"))
 
 \item{newdata}{Data to predict on.}
 
-\item{type}{\code{"prob"} (probability of the second factor level) or \code{"numeric"}.}
+\item{type}{\code{"prob"} (probability of the second factor level), \code{"numeric"},
+or \code{"prob_matrix"} (one column per class, in level order, for multiclass
+outcomes).}
 }
 \value{
 A numeric vector.

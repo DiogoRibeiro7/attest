@@ -219,7 +219,8 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
   new_check("leak_target_proxy", stage = "pre", run = function(ctx) {
     y <- ctx$train[[ctx$outcome]]
     n <- length(y)
-    classification <- ctx$task == "classification"
+    classification <- is_classification(ctx$task)
+    multiclass <- identical(ctx$task, "multiclass")
     yb <- if (classification) as.integer(y) == 2L else as.numeric(y)
 
     # Per-row contribution for each feature: a hit/miss indicator for
@@ -229,6 +230,10 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
       x <- ctx$train[[f]]
       if (length(unique(x)) < 2) {
         return(if (classification) rep(0, n) else rep(mean(yb), n))
+      }
+      if (multiclass) {
+        h <- stump_hits(x, y)
+        return(if (is.null(h)) rep(0, n) else h)
       }
       d <- data.frame(y = y, x = x)
       if (classification) {
@@ -322,7 +327,7 @@ leak_temporal <- function(time, max_prop = 0) {
 #' @export
 imbalance_report <- function() {
   new_check("imbalance_report", stage = "pre", blocking = FALSE, run = function(ctx) {
-    if (ctx$task != "classification") {
+    if (!is_classification(ctx$task)) {
       return(attest_result("imbalance_report", "untestable", message = "regression task"))
     }
     tab <- table(ctx$train[[ctx$outcome]])
@@ -358,11 +363,20 @@ imbalance_report <- function() {
 #' @export
 calib_ece <- function(max = 0.1, bins = 10, n_boot = 1000) {
   new_check("calib_ece", stage = "post", run = function(ctx) {
-    if (ctx$task != "classification") {
+    if (!is_classification(ctx$task)) {
       return(attest_result("calib_ece", "untestable", message = "regression task"))
     }
-    p <- engine_predict(ctx$engine, ctx$model, ctx$test, type = "prob")
-    y <- as.integer(ctx$test[[ctx$outcome]]) == 2L
+    if (ctx$task == "multiclass") {
+      # Top-label ECE: bin by the confidence given to the predicted class and
+      # compare it with how often that class is right.
+      pm <- engine_predict(ctx$engine, ctx$model, ctx$test, type = "prob_matrix")
+      p <- apply(pm, 1, max)
+      y <- max.col(pm, ties.method = "first") ==
+        as.integer(ctx$test[[ctx$outcome]])
+    } else {
+      p <- engine_predict(ctx$engine, ctx$model, ctx$test, type = "prob")
+      y <- as.integer(ctx$test[[ctx$outcome]]) == 2L
+    }
     ece <- ece_stat(p, y, bins)
     ci <- attest_boot(function(i) ece_stat(p[i], y[i], bins), length(p), n_boot)
     attest_result("calib_ece",
@@ -457,6 +471,12 @@ conformal_scores <- function(engine, model, data, outcome, task) {
     p <- engine_predict(engine, model, data, type = "prob")
     y <- as.integer(data[[outcome]]) == 2L
     ifelse(y, 1 - p, p)
+  } else if (task == "multiclass") {
+    # The same score as the binary case, one minus the probability given to the
+    # true class, read from the column for that class.
+    p <- engine_predict(engine, model, data, type = "prob_matrix")
+    idx <- as.integer(data[[outcome]])
+    1 - p[cbind(seq_len(nrow(p)), idx)]
   } else {
     yhat <- engine_predict(engine, model, data, type = "numeric")
     abs(data[[outcome]] - yhat)
@@ -607,6 +627,33 @@ shift_c2st <- function(auc_min = 0.6, alpha = 0.05, max_ref = 2000,
       )
     )
   })
+}
+
+# Single-feature predictive strength for a multiclass outcome. A binary outcome
+# gets a one-variable logistic fit; with more than two classes that is not
+# available without another dependency, so the feature is binned and each bin
+# predicts its majority class. A feature that determines the outcome -- an
+# identifier, a field recorded after the label -- reaches an accuracy of one
+# either way, which is what the check is looking for.
+stump_hits <- function(x, y, bins = 10) {
+  g <- if (is.numeric(x)) {
+    br <- unique(stats::quantile(x, seq(0, 1, length.out = bins + 1), na.rm = TRUE))
+    if (length(br) < 2) {
+      return(NULL)
+    }
+    cut(x, br, include.lowest = TRUE)
+  } else {
+    factor(x)
+  }
+  tab <- table(g, y)
+  if (!nrow(tab) || !ncol(tab)) {
+    return(NULL)
+  }
+  best <- colnames(tab)[max.col(tab, ties.method = "first")]
+  names(best) <- rownames(tab)
+  hit <- as.character(y) == best[as.character(g)]
+  hit[is.na(hit)] <- FALSE
+  as.numeric(hit)
 }
 
 psi <- function(expected, actual, eps = 1e-4) {

@@ -84,3 +84,21 @@
   Both behaviours are covered by tests, including the forgery that succeeds
   without a key.
 * jsonlite moves into Imports for the ledger format.
+* Multiclass outcomes are supported. A factor with more than two levels is a
+  `"multiclass"` task, and the conformal machinery generalises without a second
+  mechanism: the score is still one minus the probability of the true class and
+  the set is still every label within the quantile. Measured set coverage
+  tracks the target across alpha (0.937, 0.890 and 0.793 against 0.95, 0.90 and
+  0.80), with set size shrinking as alpha grows.
+* Multiclass predictions gain `.pred_class`, the most probable label, while
+  `.pred` becomes that label's probability so the column stays numeric across
+  tasks.
+* `engine_predict()` gains a `"prob_matrix"` type returning one column per
+  class in level order, implemented for ranger and parsnip. `engine_glm()`
+  fits binary outcomes only and now says so at fit time rather than failing
+  inside `glm()`.
+* Two checks needed a multiclass definition rather than a generalisation.
+  `calib_ece()` uses top-label ECE. `leak_target_proxy()` cannot use a
+  one-variable logistic fit, so it bins the feature and lets each bin predict
+  its majority class; a feature that determines the outcome still scores near
+  one.

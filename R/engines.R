@@ -70,7 +70,7 @@ engine_parsnip <- function(spec) {
 #' @export
 engine_fit.engine_parsnip <- function(engine, formula, data, task) {
   spec <- engine$spec
-  want <- if (task == "classification") "classification" else "regression"
+  want <- if (is_classification(task)) "classification" else "regression"
   have <- spec$mode %||% "unknown"
   if (have %in% c("unknown", "")) {
     spec <- parsnip::set_mode(spec, want)
@@ -81,7 +81,7 @@ engine_fit.engine_parsnip <- function(engine, formula, data, task) {
   }
   fit <- parsnip::fit(spec, formula, data = data)
   if (task == "classification" && length(fit$lvl) != 2) {
-    rlang::abort("attest supports two-level classification outcomes only")
+    rlang::abort("a two-level outcome was expected but the fit has more")
   }
   # Timing varies between otherwise identical fits and would make the model
   # hash depend on how fast the machine was.
@@ -91,14 +91,24 @@ engine_fit.engine_parsnip <- function(engine, formula, data, task) {
 
 #' @export
 engine_predict.engine_parsnip <- function(engine, object, newdata,
-                                          type = c("prob", "numeric")) {
+                                          type = c("prob", "numeric", "prob_matrix")) {
+  type <- match.arg(type)
   if (identical(object$spec$mode, "classification")) {
     p <- stats::predict(object, new_data = newdata, type = "prob")
-    col <- paste0(".pred_", object$lvl[2])
-    if (!col %in% names(p)) {
-      rlang::abort(sprintf("parsnip returned no `%s` column", col))
+    cols <- paste0(".pred_", object$lvl)
+    missing <- setdiff(cols, names(p))
+    if (length(missing)) {
+      rlang::abort(sprintf(
+        "parsnip returned no %s column",
+        paste(missing, collapse = ", ")
+      ))
     }
-    return(as.numeric(p[[col]]))
+    if (type == "prob_matrix") {
+      m <- as.matrix(p[, cols, drop = FALSE])
+      colnames(m) <- object$lvl
+      return(m)
+    }
+    return(as.numeric(p[[cols[2]]]))
   }
   as.numeric(stats::predict(object, new_data = newdata)$.pred)
 }
@@ -130,7 +140,9 @@ engine_fit <- function(engine, formula, data, task) UseMethod("engine_fit")
 #' @inheritParams engine_fit
 #' @param object The fitted object.
 #' @param newdata Data to predict on.
-#' @param type `"prob"` (probability of the second factor level) or `"numeric"`.
+#' @param type `"prob"` (probability of the second factor level), `"numeric"`,
+#'   or `"prob_matrix"` (one column per class, in level order, for multiclass
+#'   outcomes).
 #' @return A numeric vector.
 #' @examples
 #' set.seed(1)
@@ -139,12 +151,19 @@ engine_fit <- function(engine, formula, data, task) UseMethod("engine_fit")
 #' fit <- engine_fit(engine_glm(), y ~ x, d, "classification")
 #' head(engine_predict(engine_glm(), fit, d, type = "prob"))
 #' @export
-engine_predict <- function(engine, object, newdata, type = c("prob", "numeric")) {
+engine_predict <- function(engine, object, newdata,
+                           type = c("prob", "numeric", "prob_matrix")) {
   UseMethod("engine_predict")
 }
 
 #' @export
 engine_fit.engine_glm <- function(engine, formula, data, task) {
+  if (identical(task, "multiclass")) {
+    rlang::abort(c(
+      "engine_glm() fits binary outcomes only",
+      "i" = "for a multiclass outcome use engine_ranger() or engine_parsnip()"
+    ))
+  }
   fam <- if (task == "classification") stats::binomial() else stats::gaussian()
   fit <- do.call(
     stats::glm,
@@ -155,22 +174,36 @@ engine_fit.engine_glm <- function(engine, formula, data, task) {
 }
 
 #' @export
-engine_predict.engine_glm <- function(engine, object, newdata, type = c("prob", "numeric")) {
+engine_predict.engine_glm <- function(engine, object, newdata,
+                                      type = c("prob", "numeric", "prob_matrix")) {
+  type <- match.arg(type)
+  if (type == "prob_matrix") {
+    rlang::abort(c(
+      "engine_glm() is binary only",
+      "i" = "for a multiclass outcome use engine_ranger() or engine_parsnip()"
+    ))
+  }
   as.numeric(stats::predict(object, newdata = newdata, type = "response"))
 }
 
 #' @export
 engine_fit.engine_ranger <- function(engine, formula, data, task) {
   args <- c(list(formula = formula, data = data), engine$args)
-  if (task == "classification") args$probability <- TRUE
+  if (is_classification(task)) args$probability <- TRUE
   fit <- do.call(ranger::ranger, args)
   fit$call <- quote(attest::engine_fit())
   fit
 }
 
 #' @export
-engine_predict.engine_ranger <- function(engine, object, newdata, type = c("prob", "numeric")) {
+engine_predict.engine_ranger <- function(engine, object, newdata,
+                                         type = c("prob", "numeric", "prob_matrix")) {
+  type <- match.arg(type)
   p <- stats::predict(object, data = newdata)$predictions
+  if (type == "prob_matrix") {
+    if (!is.matrix(p)) rlang::abort("engine did not return class probabilities")
+    return(p)
+  }
   if (is.matrix(p)) as.numeric(p[, 2]) else as.numeric(p)
 }
 

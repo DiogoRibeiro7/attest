@@ -17,6 +17,7 @@ Ramdas
 SHA
 Tibshirani
 al
+alpha
 auc
 chi
 covariate
@@ -26,6 +27,7 @@ heteroscedastic
 jsonlite
 misspecified
 mlr
+multiclass
 ndjson
 newdata
 parsnip

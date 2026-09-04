@@ -84,9 +84,20 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
 
   keep <- if (enforce) status != "refused" else rep(TRUE, n)
   pred <- rep(NA_real_, n)
+  multiclass <- identical(object$task, "multiclass")
+  pm <- NULL
+  if (multiclass) {
+    pm <- matrix(NA_real_, n, length(object$levels),
+      dimnames = list(NULL, object$levels)
+    )
+  }
   if (any(keep)) {
-    type <- if (object$task == "classification") "prob" else "numeric"
-    pred[keep] <- tryCatch(
+    type <- switch(object$task,
+      classification = "prob",
+      multiclass = "prob_matrix",
+      "numeric"
+    )
+    got <- tryCatch(
       engine_predict(
         object$engine, object$model,
         newdata[keep, , drop = FALSE], type
@@ -100,6 +111,16 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
         NA_real_
       }
     )
+    if (multiclass) {
+      if (is.matrix(got)) {
+        pm[keep, ] <- got
+        # `.pred` stays numeric across tasks: for multiclass it is the
+        # probability given to the predicted class.
+        pred[keep] <- apply(got, 1, max)
+      }
+    } else {
+      pred[keep] <- got
+    }
   }
 
   wq <- weighted_q(object$conformal, newdata, object$features)
@@ -118,6 +139,19 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   if (object$task == "regression") {
     out$.lower <- pred - q
     out$.upper <- pred + q
+  } else if (multiclass) {
+    lv <- object$levels
+    winner <- max.col(replace(pm, is.na(pm), -Inf), ties.method = "first")
+    out$.pred_class <- ifelse(is.na(pred), NA_character_, lv[winner])
+    # The same rule as the binary case, applied to every class: keep the
+    # labels whose nonconformity score falls within the quantile.
+    out$.set <- vapply(seq_len(n), function(i) {
+      if (is.na(pred[i])) {
+        return(NA_character_)
+      }
+      s <- lv[(1 - pm[i, ]) <= q[i]]
+      if (length(s) == 0) "{}" else paste0("{", paste(s, collapse = ","), "}")
+    }, character(1))
   } else {
     lv <- object$levels
     out$.set <- vapply(seq_along(pred), function(i) {

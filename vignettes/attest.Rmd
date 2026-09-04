@@ -503,6 +503,48 @@ The scope of the claim is deliberately narrow: *these checks, this data, this
 moment*. Its value comes from being immutable, machine-readable and attached to
 the artefact -- not from being broad.
 
+## More than two classes
+
+A factor with more than two levels is a multiclass task, and the conformal
+machinery generalises without a second mechanism: the nonconformity score is
+still one minus the probability given to the true class, and the prediction set
+is still every label whose score falls within the quantile. With two classes
+that yields `{0}`, `{1}`, `{0,1}` or `{}`; with more, it yields any subset.
+
+```{r eval = requireNamespace("ranger", quietly = TRUE)}
+set.seed(21)
+n <- 4000
+mc <- data.frame(x1 = rnorm(n), x2 = rnorm(n))
+lp <- cbind(0, 1.2 * mc$x1, 1.0 * mc$x2 - 0.5 * mc$x1)
+pr <- exp(lp) / rowSums(exp(lp))
+mc$y <- factor(apply(pr, 1, function(p) sample(c("a", "b", "c"), 1, prob = p)))
+
+m_mc <- attest_fit(attest_spec(), y ~ x1 + x2, mc,
+  engine_ranger(num.trees = 150),
+  quiet = TRUE
+)
+predict(m_mc, mc[1:6, ])[, c(".pred", ".pred_class", ".set")]
+```
+
+`.pred_class` is the most probable label and `.pred` its probability, so that
+column stays numeric whatever the task. The set is the honest part: a row with
+`{a,b}` is the model saying it can rule out `c` at this confidence level and no
+more. Set size is the multiclass equivalent of interval width, and it is what
+tells you whether the model is useful -- coverage alone will not, for the reason
+set out earlier.
+
+Everything else carries over: the same checks run, `engine_parsnip()` reaches
+multiclass back ends, and `conformal_split(weighted = TRUE)` reweights the same
+way. The exception is `engine_glm()`, which fits binary outcomes only and says
+so rather than failing obscurely inside `glm()`.
+
+Two of the checks needed a multiclass definition rather than a generalisation.
+Calibration uses top-label ECE: bin by the confidence given to the predicted
+class, and compare it with how often that class is right. Single-feature
+leakage cannot use a one-variable logistic fit, so for multiclass the feature
+is binned and each bin predicts its majority class. A feature that determines
+the outcome still scores near one, which is what the check is looking for.
+
 ## Keeping a record
 
 A certificate travels inside the model object, which is enough while you have
