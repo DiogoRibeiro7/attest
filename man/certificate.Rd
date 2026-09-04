@@ -11,7 +11,7 @@ certificate(x)
 
 is_sealed(x)
 
-verify(x, data = NULL)
+verify(x, data = NULL, ledger = NULL)
 
 unseal(x)
 }
@@ -19,6 +19,10 @@ unseal(x)
 \item{x}{An \code{attested_model}.}
 
 \item{data}{Training data used to fit the model, for hash verification.}
+
+\item{ledger}{An optional \code{\link[=attest_ledger]{attest_ledger()}}. When given, \code{verify()} also
+checks that this certificate was recorded, that its hashes match the
+record, and that the ledger chain is intact.}
 }
 \value{
 \code{certificate()} returns the certificate; \code{is_sealed()} a logical;

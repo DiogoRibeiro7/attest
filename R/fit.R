@@ -264,6 +264,9 @@ spec_fingerprint <- function(spec) {
 #'
 #' @param x An `attested_model`.
 #' @param data Training data used to fit the model, for hash verification.
+#' @param ledger An optional [attest_ledger()]. When given, `verify()` also
+#'   checks that this certificate was recorded, that its hashes match the
+#'   record, and that the ledger chain is intact.
 #' @return `certificate()` returns the certificate; `is_sealed()` a logical;
 #'   `verify()` a logical with attribute `"diff"` listing what changed;
 #'   `unseal()` the raw engine object.
@@ -293,7 +296,7 @@ is_sealed <- function(x) {
 
 #' @rdname certificate
 #' @export
-verify <- function(x, data = NULL) {
+verify <- function(x, data = NULL, ledger = NULL) {
   stopifnot(inherits(x, "attested_model"))
   diff <- character(0)
   if (!identical(hash_obj(x$model), x$certificate$hashes$model)) diff <- c(diff, "model")
@@ -301,6 +304,23 @@ verify <- function(x, data = NULL) {
     # We cannot reconstruct the split without the seed; verify the full-data
     # feature hash was the source by checking column structure and reporting.
     if (!all(x$features %in% names(data))) diff <- c(diff, "data columns")
+  }
+  if (!is.null(ledger)) {
+    entry <- ledger_find(ledger, x)
+    if (is.null(entry)) {
+      diff <- c(diff, "not in ledger")
+    } else {
+      chain <- ledger_verify(ledger)
+      if (!chain) diff <- c(diff, "ledger chain broken")
+      pairs <- c(
+        hash_data = "data", hash_spec = "spec", hash_model = "model"
+      )
+      for (f in names(pairs)) {
+        if (!identical(as.character(entry[[f]]), x$certificate$hashes[[pairs[[f]]]])) {
+          diff <- c(diff, sprintf("ledger %s hash", pairs[[f]]))
+        }
+      }
+    }
   }
   ok <- length(diff) == 0 && x$certificate$status == "valid"
   structure(ok, diff = diff)

@@ -503,6 +503,76 @@ The scope of the claim is deliberately narrow: *these checks, this data, this
 moment*. Its value comes from being immutable, machine-readable and attached to
 the artefact -- not from being broad.
 
+## Keeping a record
+
+A certificate travels inside the model object, which is enough while you have
+the object. It does not tell you what a project has issued over time, and it
+cannot tell you whether the model in front of you is the one that was signed
+off. A ledger records every certificate a project issues, as
+newline-delimited JSON:
+
+```{r}
+led <- attest_ledger(file.path(tempdir(), "attest-ledger.ndjson"))
+ledger_append(led, m, note = "nightly build")
+ledger_append(led, mw, note = "reweighted regression")
+led
+```
+
+Each entry carries the previous entry's digest, so the file is a chain rather
+than a pile. `verify()` can then check a model in hand against the record:
+
+```{r}
+verify(m, ledger = led)
+```
+
+Editing a record breaks its own digest; removing one breaks the link in the
+record that followed it, because that entry still points at a digest which is
+no longer there:
+
+```{r}
+lines <- readLines(led$path)
+writeLines(lines[-1], led$path) # delete the first entry
+v <- ledger_verify(led)
+c(intact = v, problem = attr(v, "problems")[1])
+```
+
+```{r include = FALSE}
+writeLines(lines, led$path)
+```
+
+### What the seal proves, and what it does not
+
+This is worth stating precisely, because the two modes differ in kind.
+
+By default entries are sealed with a plain SHA-256 digest. That catches
+accidental corruption, truncation and a single edited or deleted record -- as
+above. It does **not** withstand someone rewriting the whole chain, which
+anyone with the package can do: they recompute every digest and the file
+verifies again. A default ledger is a tamper-evident log against accident and
+casual editing, not a signature.
+
+Passing a secret key seals entries with an HMAC instead, and a rewritten chain
+cannot be resealed without it:
+
+```{r}
+signed <- attest_ledger(file.path(tempdir(), "signed.ndjson"), key = "keep-me-secret")
+ledger_append(signed, m)
+c(
+  right_key = ledger_verify(signed),
+  wrong_key = ledger_verify(attest_ledger(signed$path, key = "guess")),
+  no_key = ledger_verify(attest_ledger(signed$path))
+)
+```
+
+The guarantee then rests entirely on the key: anyone holding it can rewrite the
+ledger undetectably, so it belongs outside the ledger, outside the repository,
+and outside the script that writes it.
+
+Two further limits. The ledger records that a certificate was *issued*, not
+that the model behind it still exists or is unchanged -- that is what
+`verify()` on a model in hand is for. And appending reads the file and writes a
+line, so two processes appending at once can corrupt it.
+
 ## Bringing your own model
 
 attest ships adapters for `glm` and `ranger`, but the point is not to be a

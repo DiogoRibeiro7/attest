@@ -7,12 +7,14 @@ Candes
 Covariate
 ECE
 Exchangeability
+HMAC
 Mahalanobis
 Miscoverage
 Multiclass
 ORCID
 PSI
 Ramdas
+SHA
 Tibshirani
 al
 auc
@@ -21,8 +23,10 @@ covariate
 et
 glmnet
 heteroscedastic
+jsonlite
 misspecified
 mlr
+ndjson
 newdata
 parsnip
 ranger

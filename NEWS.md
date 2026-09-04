@@ -69,3 +69,18 @@
   answers, and two identical fits produced different certificate ids.
   Identical fits now produce identical certificates, and the hash is sensitive
   to the thresholds a check was built with.
+* `attest_ledger()` records every certificate a project issues to a
+  newline-delimited JSON file, with `ledger_append()`, `ledger_entries()`,
+  `ledger_find()` and `ledger_verify()`. Each entry carries the previous
+  entry's digest, so the log is a chain: editing a record breaks its own
+  digest and removing one breaks the link in the record that followed it.
+  `attest_manifest()` returns the same facts as plain data for a single model.
+* `verify()` gains a `ledger` argument, checking that a model was recorded,
+  that its three hashes match the record, and that the chain is intact.
+* Ledger entries are sealed with a plain SHA-256 digest by default, which
+  catches accidents, truncation and single edits but not a rewritten chain --
+  anyone with the package can recompute every digest. Passing a secret `key`
+  seals entries with an HMAC instead, which a rewritten chain cannot reproduce.
+  Both behaviours are covered by tests, including the forgery that succeeds
+  without a key.
+* jsonlite moves into Imports for the ledger format.
