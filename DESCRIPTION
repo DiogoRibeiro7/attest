@@ -19,5 +19,5 @@ Depends: R (>= 4.1)
 Imports: cli, digest, rlang, stats, tibble, utils
 Suggests: ranger, testthat (>= 3.0.0), knitr, rmarkdown
 Config/testthat/edition: 3
-URL: https://github.com/diogoribeiro7/attest
-BugReports: https://github.com/diogoribeiro7/attest/issues
+URL: https://github.com/DiogoRibeiro7/attest
+BugReports: https://github.com/DiogoRibeiro7/attest/issues

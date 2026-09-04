@@ -12,8 +12,8 @@ Models that carry their own proof of validity. See \code{\link[=attest_spec]{att
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/diogoribeiro7/attest}
-  \item Report bugs at \url{https://github.com/diogoribeiro7/attest/issues}
+  \item \url{https://github.com/DiogoRibeiro7/attest}
+  \item Report bugs at \url{https://github.com/DiogoRibeiro7/attest/issues}
 }
 
 }

@@ -1,0 +1,31 @@
+{
+  "title": "attest: Fail-Closed Machine Learning with Model Certificates",
+  "description": "<p>An R package that fits predictive models carrying an immutable certificate of validity. Leakage, calibration, conformal coverage and distribution-shift checks run at fit time and are stored inside the model object, bound to the training data by hash. Predictions are returned with an interval and a validity status, and are refused by default when inputs fall outside the certified support. Reports (model cards) are rendered from the certificate so they cannot drift from the model.</p>",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Ribeiro, Diogo",
+      "orcid": "0009-0001-2022-7072",
+      "affiliation": "ESMAD, Polytechnic Institute of Porto"
+    }
+  ],
+  "keywords": [
+    "R",
+    "machine learning",
+    "conformal prediction",
+    "data leakage",
+    "model calibration",
+    "distribution shift",
+    "reproducibility",
+    "model cards"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/DiogoRibeiro7/attest",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

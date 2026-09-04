@@ -3,7 +3,7 @@
 > Fail-closed machine learning: models that carry their own proof of validity.
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/diogoribeiro7/attest/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/diogoribeiro7/attest/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/DiogoRibeiro7/attest/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/DiogoRibeiro7/attest/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 Every modelling function in R will happily return a number. `attest` makes
@@ -27,7 +27,7 @@ The contract:
 
 ```r
 # install.packages("pak")
-pak::pak("diogoribeiro7/attest")
+pak::pak("DiogoRibeiro7/attest")
 ```
 
 ## Example
@@ -98,4 +98,4 @@ engine adapters; HTML model cards; classifier two-sample shift tests.
 ## Citation
 
 Ribeiro, D. (2026). *attest: fail-closed machine learning in R*. R package
-version 0.1.0. https://github.com/diogoribeiro7/attest
+version 0.1.0. https://github.com/DiogoRibeiro7/attest
