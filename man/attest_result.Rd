@@ -9,6 +9,7 @@ attest_result(
   status,
   statistic = NA_real_,
   threshold = NA_real_,
+  ci = c(NA_real_, NA_real_),
   message = "",
   evidence = list()
 )
@@ -16,11 +17,15 @@ attest_result(
 \arguments{
 \item{id}{Check identifier.}
 
-\item{status}{One of \code{"pass"}, \code{"fail"}, \code{"waived"}, \code{"untestable"}, \code{"info"}.}
+\item{status}{One of \code{"pass"}, \code{"weak"}, \code{"fail"}, \code{"waived"},
+\code{"untestable"}, \code{"info"}.}
 
 \item{statistic}{Numeric statistic (may be \code{NA}).}
 
 \item{threshold}{Numeric threshold (may be \code{NA}).}
+
+\item{ci}{Numeric vector of length 2, the lower and upper bounds of a
+confidence interval for \code{statistic}. \code{c(NA, NA)} when not estimated.}
 
 \item{message}{Human-readable summary.}
 
@@ -30,6 +35,15 @@ attest_result(
 An object of class \code{attest_result}.
 }
 \description{
-Every check returns one of these. \code{status} is one of \code{"pass"}, \code{"fail"},
-\code{"waived"}, \code{"untestable"} or \code{"info"}.
+Every check returns one of these. \code{status} is one of \code{"pass"}, \code{"weak"},
+\code{"fail"}, \code{"waived"}, \code{"untestable"} or \code{"info"}.
+}
+\details{
+\code{"weak"} means the statistic's confidence interval straddles the threshold:
+the check neither confidently passed nor confidently failed. See
+\code{\link[=attest_verdict]{attest_verdict()}}.
+}
+\examples{
+attest_result("my_check", "weak", statistic = 0.04,
+              threshold = 0.05, ci = c(0.02, 0.09))
 }

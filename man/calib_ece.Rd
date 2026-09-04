@@ -4,16 +4,22 @@
 \alias{calib_ece}
 \title{Calibration check: expected calibration error on the test set}
 \usage{
-calib_ece(max = 0.1, bins = 10)
+calib_ece(max = 0.1, bins = 10, n_boot = 1000)
 }
 \arguments{
 \item{max}{Maximum tolerated ECE.}
 
 \item{bins}{Number of equal-width probability bins.}
+
+\item{n_boot}{Bootstrap replicates for the confidence interval; \code{0}
+disables it and the point estimate decides.}
 }
 \value{
 An \code{attest_check}.
 }
 \description{
-Calibration check: expected calibration error on the test set
+The ECE is a sample statistic, so it is reported with a bootstrap
+confidence interval over test rows and the verdict follows
+\code{\link[=attest_verdict]{attest_verdict()}}: the check fails only when the whole interval sits above
+\code{max}, and is \code{"weak"} when the interval straddles it.
 }

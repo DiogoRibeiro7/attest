@@ -208,6 +208,62 @@ Most rows are individually inside the training range, so they are not refused --
 but the *batch* has moved, and PSI catches it. Flagged means the prediction is
 returned and the caller is told the population has changed.
 
+## Checks know how uncertain they are
+
+Every check statistic above is estimated from a finite sample, so comparing a
+point estimate to a threshold decides borderline cases by luck. Checks
+therefore report a bootstrap confidence interval, and the verdict follows a
+three-way rule:
+
+- **fail** -- the whole interval clears the threshold. The violation is
+  confident.
+- **pass** -- the whole interval is on the acceptable side.
+- **weak** -- the interval straddles the threshold. The evidence does not
+  settle it.
+
+```{r}
+attest_verdict(0.20, c(0.15, 0.25), threshold = 0.10, direction = "at_most")
+attest_verdict(0.04, c(0.02, 0.06), threshold = 0.10, direction = "at_most")
+attest_verdict(0.09, c(0.04, 0.15), threshold = 0.10, direction = "at_most")
+```
+
+A `weak` check passes by default, on the principle that noise alone should not
+fail a model. But it is reported, stored in the certificate and printed in the
+model card, so "we could not tell" is never silently recorded as "fine":
+
+```{r}
+mid <- mean(certificate(m)$results$calib_ece$ci)
+borderline <- attest_spec(checks = list(calib_ece(max = mid), shift_monitor()))
+mw <- attest_fit(borderline, y ~ x1 + x2 + x3, d, engine_glm())
+```
+
+This cuts against fail-closed defaults in one specific way, worth stating
+plainly: intervals widen as data gets scarcer, so the smaller your dataset, the
+harder it is for any check to fail. A package that refuses by default would
+become most permissive exactly when evidence is thinnest. `strict = TRUE`
+inverts that, treating an inconclusive check as a failure:
+
+```{r error = TRUE}
+attest_fit(
+  attest_spec(checks = list(calib_ece(max = mid), shift_monitor()), strict = TRUE),
+  y ~ x1 + x2 + x3, d, engine_glm(), quiet = TRUE
+)
+```
+
+Not every check gets an interval. `leak_duplicates()` reports none, because
+duplication is a census of the rows you hold rather than an estimate of a
+population quantity: if a training row is in your test set, it is there, and
+resampling would only describe some other dataset.
+
+PSI is a third case again. Its noise floor depends on the batch size, so
+resampling the batch would not help -- the bootstrap would inherit the same
+small-sample bias. With ten bins, a batch of 50 rows drawn from the *training
+distribution itself* has a median PSI of about 0.2, which is the conventional
+flag threshold: the default settings would flag roughly half of all healthy
+small batches. So the null is simulated instead, drawing batches of the
+observed size from the stored training frequencies, and a feature is flagged
+only when it beats both that null and the effect-size threshold.
+
 ## The model card
 
 `report()` renders Markdown entirely from the certificate, so it cannot drift
@@ -259,11 +315,15 @@ feature's range and still be far from the joint distribution -- a 40-year-old
 with a 45-year career. Marginal support checks will not catch that, and the
 `.shift` score will not either.
 
-**PSI is a heuristic.** The 0.2 threshold is convention, not theory. PSI is
-computed per feature on binned marginals: it will miss a shift in the
-dependence structure between features that leaves every marginal intact, and it
-will fire on harmless seasonal movement in a feature the model barely uses.
-Treat a flag as a prompt to investigate, not a verdict.
+**PSI is a heuristic, and its threshold is an effect size.** The 0.2 line is
+convention, not theory. The batch size problem is handled -- see *Checks know
+how uncertain they are* above -- but the rest is not: PSI is computed per
+feature on binned marginals, so it will miss a shift in the dependence
+structure between features that leaves every marginal intact, and it will fire
+on harmless seasonal movement in a feature the model barely uses. Because
+`threshold` acts as an effect-size floor, a real but subtle shift is never flagged
+however many rows you have. Treat a flag as a prompt to investigate, not a
+verdict.
 
 **The leakage checks are shallow by construction.** `leak_target_proxy()` fits
 one-variable models, so it finds single features that restate the target. It

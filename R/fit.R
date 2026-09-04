@@ -7,6 +7,11 @@
 #' @param on_fail What to do when a blocking check fails: `"refuse"` (default;
 #'   no certificate is issued and fitting errors), `"flag"` (certificate is
 #'   issued but marked as failed) or `"warn"`.
+#' @param strict How to treat a `"weak"` check, where the statistic's
+#'   confidence interval straddles its threshold. `FALSE` (default) treats it
+#'   as a pass: a check fails only on confident violation. `TRUE` treats it as
+#'   a failure, so inconclusive evidence blocks certification. Set it when
+#'   scarce data must not buy a certificate by widening intervals.
 #' @return An object of class `attest_spec`.
 #' @examples
 #' spec <- attest_spec(split_random(0.25), on_fail = "flag")
@@ -14,14 +19,16 @@
 #' @export
 attest_spec <- function(split = split_random(),
                         checks = default_checks(),
-                        on_fail = c("refuse", "flag", "warn")) {
+                        on_fail = c("refuse", "flag", "warn"),
+                        strict = FALSE) {
   on_fail <- match.arg(on_fail)
-  stopifnot(inherits(split, "attest_split"))
+  stopifnot(inherits(split, "attest_split"), is.logical(strict), length(strict) == 1)
   if (inherits(checks, "attest_check")) checks <- list(checks)
   ids <- vapply(checks, function(ch) ch$id, character(1))
   if (anyDuplicated(ids)) rlang::abort("duplicate check ids in spec")
   names(checks) <- ids
-  structure(list(split = split, checks = checks, on_fail = on_fail),
+  structure(list(split = split, checks = checks, on_fail = on_fail,
+                 strict = strict),
             class = "attest_spec")
 }
 
@@ -118,12 +125,21 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
   ctx$model <- engine_fit(engine, formula, ctx$train, task)
   run_stage("post")
 
+  fail_states <- if (isTRUE(spec$strict)) c("fail", "weak") else "fail"
   blocking_fail <- vapply(spec$checks, function(ch) {
-    ch$blocking && results[[ch$id]]$status == "fail"
+    ch$blocking && results[[ch$id]]$status %in% fail_states
   }, logical(1))
   failed <- names(spec$checks)[blocking_fail]
+  weak <- names(spec$checks)[vapply(spec$checks, function(ch) {
+    results[[ch$id]]$status == "weak"
+  }, logical(1))]
 
   status <- if (length(failed) == 0) "valid" else "failed"
+  if (length(weak) > 0 && !quiet) {
+    cli::cli_alert_warning(
+      "inconclusive: {paste(weak, collapse = ', ')} -- interval straddles the threshold{if (!isTRUE(spec$strict)) '; treated as a pass (see `strict`)' else ''}"
+    )
+  }
   if (length(failed) > 0) {
     msg <- sprintf("blocking checks failed: %s", paste(failed, collapse = ", "))
     if (spec$on_fail == "refuse") {
@@ -173,6 +189,7 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
 
 report_line <- function(res, blocking) {
   sym <- switch(res$status, pass = cli::col_green(cli::symbol$tick),
+                weak = cli::col_yellow("?"),
                 fail = cli::col_red(cli::symbol$cross),
                 waived = cli::col_yellow("~"),
                 untestable = cli::col_grey("-"),

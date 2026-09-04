@@ -41,23 +41,34 @@ d$y <- factor(rbinom(2000, 1, plogis(0.8 * d$x1 - 0.5 * d$x2)))
 
 m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm())
 #> ✔ leak_duplicates      pass        0.0% of test rows duplicate a training row
-#> ✔ leak_target_proxy    pass        max single-feature score 0.641
-#> i imbalance_report     info        minority/majority ratio 0.941 (0=968, 1=1032)
-#> ✔ calib_ece            pass        ECE = 0.028 (max 0.100)
-#> ✔ conformal_split      pass        empirical coverage 0.905 (target 0.900)
+#> ✔ leak_target_proxy    pass        max single-feature score 0.627 [0.602, 0.653]
+#> i imbalance_report     info        minority/majority ratio 0.960 (0=627, 1=653)
+#> ? calib_ece            weak        ECE = 0.059 [0.043, 0.107] (max 0.100)
+#> ? conformal_split      weak        empirical coverage 0.892 [0.863, 0.922] (target 0.900)
 #> i shift_monitor        info        baseline stored
-#> ℹ Certificate 2a6c1f0b9e41 issued 2026-09-04 20:51:03 UTC (valid)
+#> ! inconclusive: calib_ece, conformal_split -- interval straddles the threshold
+#> ℹ Certificate 5df55092f486 issued 2026-09-04 21:20:05 UTC (valid)
 
 nd <- d[1:3, ]; nd$x1[1] <- 50
 predict(m, nd)
-#> # attested_prediction: 3 rows, certificate 2a6c1f0b9e41
+#> # attested_prediction: 3 rows, certificate 5df55092f486
 #> valid: 2 | flagged: 0 | refused: 1
-#>   .pred .set  .status .shift .reason
-#>      NA NA    refused    0.5 outside training support: x1
-#>   0.61  {0,1} valid      0   NA
-#>   0.22  {0,1} valid      0   NA
+#>    .pred .set  .status .shift .reason
+#> 1 NA     <NA>  refused    0.5  outside training support: x1
+#> 2  0.768 {1}   valid      0.5  NA
+#> 3  0.210 {0}   valid      0.5  NA
 
 report(m, "model_card.md")   # rendered from the certificate, never hand-written
+```
+
+Two checks come back `weak` rather than `pass`: at 2,000 rows the confidence
+intervals for ECE and coverage straddle their thresholds, so the evidence does
+not settle the question either way. A check fails only when its whole interval
+clears the line, so noise alone cannot fail a model -- but "we could not tell"
+is recorded as such rather than quietly counted as a pass. Use
+`attest_spec(strict = TRUE)` to treat an inconclusive check as a failure.
+
+```r
 ```
 
 A leaky feature at fit time:

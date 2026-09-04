@@ -4,13 +4,16 @@
 \alias{conformal_split}
 \title{Coverage check: split conformal prediction}
 \usage{
-conformal_split(alpha = 0.1, tolerance = 0.03)
+conformal_split(alpha = 0.1, tolerance = 0.03, n_boot = 1000)
 }
 \arguments{
 \item{alpha}{Miscoverage level; target coverage is \code{1 - alpha}.}
 
 \item{tolerance}{Tolerated shortfall of empirical test coverage below
 \code{1 - alpha} before the check fails.}
+
+\item{n_boot}{Bootstrap replicates for the coverage confidence interval;
+\code{0} disables it and the point estimate decides.}
 }
 \value{
 An \code{attest_check}.
@@ -21,4 +24,14 @@ verifies empirical coverage on the test set. For regression the score is
 the absolute residual and predictions carry an interval; for binary
 classification the score is \verb{1 - p(true class)} and predictions carry a
 label set.
+}
+\details{
+Empirical coverage is a sample statistic and scatters around its target, so
+it is reported with a bootstrap confidence interval over test rows. The
+check fails only when the whole interval sits below \code{1 - alpha - tolerance},
+and is \code{"weak"} when the interval straddles that line.
+
+The interval reflects sampling noise in the \emph{test} set only. The
+calibration quantile \code{q} is treated as fixed, so the interval understates
+total uncertainty when the calibration set is small.
 }

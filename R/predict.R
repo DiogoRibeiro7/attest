@@ -28,7 +28,10 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   reason <- rep(NA_character_, n)
   if (length(sh$batch_flagged)) {
     status[] <- "flagged"
-    reason[] <- sprintf("PSI > %.2f on %s", sh$threshold, paste(sh$batch_flagged, collapse = ", "))
+    bar <- max(sh$effective_threshold[sh$batch_flagged], na.rm = TRUE)
+    reason[] <- sprintf("PSI %.2f > %.2f on %s",
+                        max(sh$batch_psi[sh$batch_flagged]), bar,
+                        paste(sh$batch_flagged, collapse = ", "))
   }
   status[sh$refused] <- "refused"
   reason[sh$refused] <- sh$refuse_reason[sh$refused]
@@ -73,9 +76,14 @@ shift_eval <- function(shift, newdata, features) {
                 refuse_reason = rep(NA_character_, n), row_score = rep(0, n), threshold = NA))
   }
   base <- shift$baseline
+  n_boot <- shift$n_boot %||% 0
+  # Bonferroni across features: the batch is flagged if any feature fires, so
+  # the per-feature quantile must be tightened to hold the family-wise rate.
+  conf_f <- 1 - (1 - (shift$conf %||% 0.95)) / max(1, length(features))
   out_of_support <- matrix(FALSE, n, length(features), dimnames = list(NULL, features))
   central <- matrix(FALSE, n, length(features))
   batch_psi <- numeric(length(features)); names(batch_psi) <- features
+  psi_null <- rep(NA_real_, length(features)); names(psi_null) <- features
   for (j in seq_along(features)) {
     f <- features[j]; b <- base[[f]]; x <- newdata[[f]]
     if (b$type == "numeric") {
@@ -85,6 +93,7 @@ shift_eval <- function(shift, newdata, features) {
       if (n >= shift$min_batch) {
         act <- as.numeric(table(cut(x, br, include.lowest = TRUE))) / sum(!is.na(x))
         batch_psi[j] <- psi(b$freq, act)
+        psi_null[j] <- psi_null_quantile(b$freq, n, n_boot, conf_f)
       }
     } else {
       xf <- as.character(x)
@@ -94,9 +103,15 @@ shift_eval <- function(shift, newdata, features) {
       if (n >= shift$min_batch) {
         act <- as.numeric(table(factor(xf, levels = b$levels))) / sum(!is.na(xf))
         batch_psi[j] <- psi(b$freq, act)
+        psi_null[j] <- psi_null_quantile(b$freq, n, n_boot, conf_f)
       }
     }
   }
+  # A feature is flagged only when its PSI exceeds both the effect-size
+  # threshold and what a batch of this size produces under no shift at all.
+  # Without the second condition, small batches flag constantly: see
+  # psi_null_quantile().
+  effective <- pmax(shift$threshold, ifelse(is.na(psi_null), -Inf, psi_null))
   refused <- rowSums(out_of_support) > 0
   refuse_reason <- rep(NA_character_, n)
   if (any(refused)) {
@@ -104,9 +119,12 @@ shift_eval <- function(shift, newdata, features) {
       sprintf("outside training support: %s", paste(features[out_of_support[i, ]], collapse = ", "))
     }, character(1))
   }
-  list(batch_flagged = names(batch_psi)[batch_psi > shift$threshold],
+  flagged <- names(batch_psi)[batch_psi > effective]
+  list(batch_flagged = flagged,
        refused = refused, refuse_reason = refuse_reason,
-       row_score = rowMeans(central), threshold = shift$threshold, batch_psi = batch_psi)
+       row_score = rowMeans(central), threshold = shift$threshold,
+       batch_psi = batch_psi, psi_null = psi_null,
+       effective_threshold = stats::setNames(effective, features))
 }
 
 #' @export
@@ -144,22 +162,31 @@ report <- function(x, file = NULL) {
     "",
     "## Checks",
     "",
-    "| check | status | statistic | threshold | detail |",
-    "|---|---|---|---|---|"
+    "| check | status | statistic | 95% CI | threshold | detail |",
+    "|---|---|---|---|---|---|"
   )
   for (r in ce$results) {
-    lines <- c(lines, sprintf("| %s | %s | %s | %s | %s |", r$id,
-                              if (r$status == "fail") "**FAIL**" else r$status,
-                              fmt_num(r$statistic), fmt_num(r$threshold), r$message))
+    ci <- r$ci
+    ci_txt <- if (is.null(ci) || length(ci) != 2 || anyNA(ci)) ""
+              else sprintf("[%s, %s]", fmt_num(ci[1]), fmt_num(ci[2]))
+    lines <- c(lines, sprintf("| %s | %s | %s | %s | %s | %s |", r$id,
+                              switch(r$status, fail = "**FAIL**",
+                                     weak = "_weak_", r$status),
+                              fmt_num(r$statistic), ci_txt,
+                              fmt_num(r$threshold), r$message))
   }
   if (!is.null(ce$waivers)) {
     lines <- c(lines, "", "## Waivers", "",
                sprintf("> **%s** waived. Reason given: \"%s\"", paste(ce$waivers$ids, collapse = ", "), ce$waivers$reason))
   }
   if (!is.null(x$conformal)) {
+    cov_ci <- x$conformal$coverage_ci
+    cov_txt <- if (is.null(cov_ci) || anyNA(cov_ci)) "" else
+      sprintf(" Measured coverage interval [%s, %s] reflects test-set sampling noise only; the calibration quantile is treated as fixed.",
+              fmt_num(cov_ci[1]), fmt_num(cov_ci[2]))
     lines <- c(lines, "", "## Prediction guarantee", "",
-               sprintf("Split conformal, alpha = %.2f, calibrated on %d rows, quantile %s. Coverage is marginal (on average over exchangeable data), not conditional on any row.",
-                       x$conformal$alpha, x$conformal$n_calib, fmt_num(x$conformal$q)))
+               sprintf("Split conformal, alpha = %.2f, calibrated on %d rows, quantile %s. Coverage is marginal (on average over exchangeable data), not conditional on any row.%s",
+                       x$conformal$alpha, x$conformal$n_calib, fmt_num(x$conformal$q), cov_txt))
   }
   lines <- c(lines, "", "## Refusal policy", "",
              "Rows with any numeric feature outside the training support (widened by tolerance) or an unseen categorical level are refused. Batches with feature PSI above the threshold are flagged.")

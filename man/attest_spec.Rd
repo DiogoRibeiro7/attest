@@ -8,7 +8,8 @@
 attest_spec(
   split = split_random(),
   checks = default_checks(),
-  on_fail = c("refuse", "flag", "warn")
+  on_fail = c("refuse", "flag", "warn"),
+  strict = FALSE
 )
 
 default_checks()
@@ -23,6 +24,12 @@ and a PSI shift monitor.}
 \item{on_fail}{What to do when a blocking check fails: \code{"refuse"} (default;
 no certificate is issued and fitting errors), \code{"flag"} (certificate is
 issued but marked as failed) or \code{"warn"}.}
+
+\item{strict}{How to treat a \code{"weak"} check, where the statistic's
+confidence interval straddles its threshold. \code{FALSE} (default) treats it
+as a pass: a check fails only on confident violation. \code{TRUE} treats it as
+a failure, so inconclusive evidence blocks certification. Set it when
+scarce data must not buy a certificate by widening intervals.}
 }
 \value{
 An object of class \code{attest_spec}.

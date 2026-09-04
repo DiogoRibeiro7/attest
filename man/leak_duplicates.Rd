@@ -16,3 +16,10 @@ An \code{attest_check}.
 \description{
 Leakage check: exact duplicate rows across train and test
 }
+\details{
+Unlike \code{\link[=calib_ece]{calib_ece()}} or \code{\link[=conformal_split]{conformal_split()}}, this check reports no
+confidence interval. Duplication is a census of the rows you actually hold,
+not an estimate of a population quantity: if a training row appears in the
+test set, it is there, and resampling would only describe a hypothetical
+other dataset. The same reasoning applies to \code{\link[=leak_temporal]{leak_temporal()}}.
+}

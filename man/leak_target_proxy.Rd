@@ -4,10 +4,14 @@
 \alias{leak_target_proxy}
 \title{Leakage check: a single feature is a near-deterministic proxy of the target}
 \usage{
-leak_target_proxy(threshold = 0.95)
+leak_target_proxy(threshold = 0.95, n_boot = 500)
 }
 \arguments{
 \item{threshold}{Maximum tolerated single-feature accuracy / R-squared.}
+
+\item{n_boot}{Bootstrap replicates for the confidence interval on the
+strongest feature's score; \code{0} disables it and the point estimate
+decides.}
 }
 \value{
 An \code{attest_check}.
@@ -16,4 +20,15 @@ An \code{attest_check}.
 For each feature, a one-variable model is fitted on the training set. For
 classification the statistic is accuracy; for regression it is R-squared.
 Any feature above \code{threshold} fails the check.
+}
+\details{
+The reported statistic is the maximum score across features. It is given a
+bootstrap confidence interval over training rows, so a feature that merely
+looks strong in a small sample no longer fails the check outright: the
+verdict is \code{"weak"} unless the whole interval sits above \code{threshold}.
+
+Bootstrapping is conditional on the fitted one-variable models -- they are
+fitted once, and resampling is applied to their per-row predictions rather
+than refitting each replicate. This keeps the check affordable and captures
+sampling noise in the score, but not the variability of the fits themselves.
 }
