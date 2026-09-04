@@ -1,0 +1,23 @@
+Package: attest
+Title: Fail-Closed Machine Learning with Model Certificates
+Version: 0.1.0
+Authors@R: 
+    person("Diogo", "Ribeiro", , "dfr@esmad.ipp.pt", role = c("aut", "cre"),
+           comment = c(ORCID = "0009-0001-2022-7072"))
+Description: Fits predictive models that carry an immutable certificate of
+    validity. Leakage, calibration, conformal coverage and distribution-shift
+    checks run at fit time and are stored inside the model object, bound to
+    the training data by hash. Predictions are returned with an interval and a
+    validity status and are refused, by default, when inputs fall outside the
+    certified support. Reports (model cards) are rendered from the certificate
+    so they cannot drift from the model.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Depends: R (>= 4.1)
+Imports: cli, digest, rlang, stats, tibble, utils
+Suggests: ranger, testthat (>= 3.0.0), knitr, rmarkdown
+Config/testthat/edition: 3
+URL: https://github.com/diogoribeiro7/attest
+BugReports: https://github.com/diogoribeiro7/attest/issues
