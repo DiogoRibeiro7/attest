@@ -382,7 +382,8 @@ calib_ece <- function(max = 0.1, bins = 10, n_boot = 1000) {
     attest_result("calib_ece",
       attest_verdict(ece, ci, max, "at_most"),
       statistic = ece, threshold = max, ci = ci,
-      message = sprintf("ECE = %.3f%s (max %.3f)", ece, fmt_ci(ci), max)
+      message = sprintf("ECE = %.3f%s (max %.3f)", ece, fmt_ci(ci), max),
+      evidence = list(bins = ece_bins(p, y, bins))
     )
   })
 }
@@ -397,6 +398,50 @@ ece_stat <- function(p, y, bins) {
     ece <- ece + (length(idx) / n) * abs(mean(y[idx]) - mean(p[idx]))
   }
   ece
+}
+
+# Per-bin confidence against observed frequency. Stored in the certificate so a
+# reliability diagram can be drawn from the certificate alone, keeping the rule
+# that a report never consults anything the model card cannot vouch for.
+ece_bins <- function(p, y, bins) {
+  b <- cut(p, breaks = seq(0, 1, length.out = bins + 1), include.lowest = TRUE)
+  out <- lapply(levels(b), function(lv) {
+    idx <- which(b == lv)
+    if (!length(idx)) {
+      return(NULL)
+    }
+    list(
+      confidence = mean(p[idx]), observed = mean(y[idx]),
+      n = length(idx)
+    )
+  })
+  out <- Filter(Negate(is.null), out)
+  if (!length(out)) {
+    return(NULL)
+  }
+  list(
+    confidence = vapply(out, function(z) z$confidence, numeric(1)),
+    observed = vapply(out, function(z) z$observed, numeric(1)),
+    n = vapply(out, function(z) z$n, numeric(1))
+  )
+}
+
+# Empirical coverage the split conformal quantile would have achieved across a
+# grid of miscoverage levels, so the card can show the whole curve rather than
+# the single point the model was certified at.
+coverage_curve <- function(calib_scores, test_scores,
+                           alphas = seq(0.01, 0.5, by = 0.01)) {
+  n <- length(calib_scores)
+  if (!n || !length(test_scores)) {
+    return(NULL)
+  }
+  s <- sort(calib_scores)
+  cov <- vapply(alphas, function(a) {
+    k <- ceiling((n + 1) * (1 - a))
+    q <- if (k > n) Inf else s[k]
+    mean(test_scores <= q)
+  }, numeric(1))
+  list(alpha = alphas, coverage = cov)
 }
 
 #' Coverage check: split conformal prediction
@@ -444,7 +489,10 @@ conformal_split <- function(alpha = 0.1, tolerance = 0.03, n_boot = 1000,
     covered <- test_scores <= q
     cov <- mean(covered)
     ci <- attest_boot(function(i) mean(covered[i]), length(covered), n_boot)
-    evidence <- list(q = q, alpha = alpha, n_calib = n, coverage_ci = ci)
+    evidence <- list(
+      q = q, alpha = alpha, n_calib = n, coverage_ci = ci,
+      curve = coverage_curve(scores, test_scores)
+    )
     if (isTRUE(weighted)) {
       # Reweighting at prediction time needs the calibration scores and the
       # covariates they came from, not just the quantile they produced.

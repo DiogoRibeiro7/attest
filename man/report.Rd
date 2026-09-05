@@ -4,15 +4,24 @@
 \alias{report}
 \title{Render a model card from the certificate}
 \usage{
-report(x, file = NULL)
+report(x, file = NULL, format = c("md", "html"), newdata = NULL)
 }
 \arguments{
 \item{x}{An \code{attested_model}.}
 
-\item{file}{Optional path; if \code{NULL} the Markdown text is returned.}
+\item{file}{Optional path; if \code{NULL} the text is returned.}
+
+\item{format}{\code{"md"} for Markdown, the default, or \code{"html"} for a
+self-contained page with diagnostic charts. The HTML has no external
+assets: the charts are inline SVG, so the file can be mailed or committed
+on its own.}
+
+\item{newdata}{Optional batch. When supplied to the HTML format, the card
+gains a shift section for that batch. Everything else is drawn from the
+certificate alone, so it cannot disagree with the model.}
 }
 \value{
-Invisibly, the Markdown text (a character vector of lines).
+Invisibly, the text (a character vector of lines).
 }
 \description{
 The report is generated entirely from the \code{attested_model} object, so it

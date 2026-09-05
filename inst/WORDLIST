@@ -13,8 +13,10 @@ Miscoverage
 Multiclass
 ORCID
 PSI
+Quarto
 Ramdas
 SHA
+SVG
 Tibshirani
 al
 alpha
@@ -38,4 +40,5 @@ reweighting
 reweights
 tibble
 tidymodels
+viewBox
 xgboost

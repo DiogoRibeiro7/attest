@@ -405,6 +405,49 @@ from the model it describes:
 cat(report(m)[1:12], sep = "\n")
 ```
 
+### A card you can send someone
+
+`format = "html"` renders the same certificate as a self-contained page with
+diagnostics drawn in. There are no external assets: the charts are inline SVG,
+so the file can be mailed, committed or attached to a ticket on its own.
+
+```{r}
+card <- report(m, format = "html")
+c(lines = length(card), charts = sum(grepl("<svg", card)))
+```
+
+```{r}
+f <- file.path(tempdir(), "model-card.html")
+report(m, f, format = "html")
+file.size(f)
+```
+
+The page carries a reliability diagram and the empirical coverage curve across
+alpha, so the single number each check reports can be read in context: an ECE
+of 0.03 says little on its own, while the diagram shows *where* the model is
+over- or under-confident.
+
+Both are drawn from figures stored in the certificate at fit time, not
+recomputed when the card is written. That is what keeps the rule from the top
+of this vignette intact -- the report cannot disagree with the model, and that
+now extends to the pictures. Recomputing the ECE from the stored bins returns
+the certificate's own statistic, and the coverage curve passes exactly through
+the certified point.
+
+Passing `newdata` adds a shift section for that batch, with PSI per feature
+against the bar it had to clear:
+
+```{r}
+batch <- d[1:400, ]
+batch$x1 <- batch$x1 + 1.5
+shifted_card <- report(m, format = "html", newdata = batch)
+any(grepl("Shift on the supplied batch", shifted_card))
+```
+
+Markdown remains the default and is unchanged, which is what you want when the
+card is being embedded in a Quarto or R Markdown document rather than read on
+its own.
+
 ## What a certificate does not guarantee
 
 This section matters more than the rest of the vignette. A certificate is

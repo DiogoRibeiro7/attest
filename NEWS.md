@@ -102,3 +102,16 @@
   one-variable logistic fit, so it bins the feature and lets each bin predict
   its majority class; a feature that determines the outcome still scores near
   one.
+* `report()` gains `format = "html"`, rendering the certificate as a
+  self-contained page with a reliability diagram, the empirical coverage curve
+  across alpha, and a check table. The charts are inline SVG written by hand,
+  so the card has no external assets and the package gains no plotting
+  dependency. Markdown remains the default and is unchanged.
+* The charts are drawn from figures stored in the certificate at fit time
+  rather than recomputed when the card is written, so a card cannot disagree
+  with the model it describes. Tests assert that recomputing the ECE from the
+  stored bins returns the certificate's own statistic, and that the coverage
+  curve passes through the certified point.
+* `report()` gains `newdata`, adding a shift section with PSI per feature for a
+  supplied batch.
+* Certificates now store per-bin calibration figures and a coverage curve.

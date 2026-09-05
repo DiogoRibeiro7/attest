@@ -272,8 +272,15 @@ print.attested_prediction <- function(x, ...) {
 #' cannot drift from the model.
 #'
 #' @param x An `attested_model`.
-#' @param file Optional path; if `NULL` the Markdown text is returned.
-#' @return Invisibly, the Markdown text (a character vector of lines).
+#' @param file Optional path; if `NULL` the text is returned.
+#' @param format `"md"` for Markdown, the default, or `"html"` for a
+#'   self-contained page with diagnostic charts. The HTML has no external
+#'   assets: the charts are inline SVG, so the file can be mailed or committed
+#'   on its own.
+#' @param newdata Optional batch. When supplied to the HTML format, the card
+#'   gains a shift section for that batch. Everything else is drawn from the
+#'   certificate alone, so it cannot disagree with the model.
+#' @return Invisibly, the text (a character vector of lines).
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
@@ -281,8 +288,14 @@ print.attested_prediction <- function(x, ...) {
 #' m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
 #' cat(report(m)[1:8], sep = "\n")
 #' @export
-report <- function(x, file = NULL) {
+report <- function(x, file = NULL, format = c("md", "html"), newdata = NULL) {
   stopifnot(inherits(x, "attested_model"))
+  format <- match.arg(format)
+  if (format == "html") {
+    lines <- report_html(x, newdata)
+    if (!is.null(file)) writeLines(lines, file)
+    return(invisible(lines))
+  }
   ce <- x$certificate
   lines <- c(
     sprintf("# Model card: %s (%s)", ce$outcome, ce$task),
