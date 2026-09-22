@@ -84,14 +84,14 @@ features that any per-feature statistic misses by construction.
 
 The same principle corrected a defect that simulation had not exposed.
 Screening a feature by classification accuracy fails whenever the outcome is
-rare, because a majority-class rule already achieves the base rate. On 67,856
-motor policies [@dataCar] with a 6.8% claim rate, all seven rating factors
-scored 0.9318 against a no-claim rate of 0.9319 -- the statistic was reporting
-the class balance and nothing else. At a 2.6% event rate a pure-noise feature
-clears a 0.95 threshold and the check refuses every model, in exactly the
-rare-event settings the package targets. Scoring by area under the curve, or
-mean per-class recall for multiclass, leaves an uninformative feature at chance
-however skewed the outcome.
+rare, because a majority-class rule already achieves the base rate. Across four
+insurance portfolios [@insuranceData] a pure-noise feature scores the base rate
+to three decimals, at base rates from 0.53 to 0.99, while the area under the
+curve stays at chance. On one of them, 64,548 policies at a 1% claim rate,
+accuracy scores 0.990 on noise and so clears a 0.95 threshold: the screen
+refuses every model, in exactly the rare-event settings the package targets.
+The same four portfolios put the conventional PSI threshold at 52% to 92% on
+unshifted 50-row batches, against 80% for simulated covariates.
 
 **Refusal is where the guarantee ends, not an extra safeguard.** Split conformal
 prediction [@vovk2005; @lei2018] provides marginal coverage under
