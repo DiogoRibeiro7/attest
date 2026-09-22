@@ -209,6 +209,15 @@ print.attest_check <- function(x, ...) {
 #' not an estimate of a population quantity: if a training row appears in the
 #' test set, it is there, and resampling would only describe a hypothetical
 #' other dataset. The same reasoning applies to [leak_temporal()].
+#'
+#' The default tolerates nothing, which is right when a duplicate row means the
+#' same record reached both partitions. Be aware that on real data with
+#' low-cardinality features some duplication is arithmetic rather than
+#' leakage: two distinct subjects can share every recorded value. A motor
+#' portfolio of 68,000 policies described by seven mixed rating factors
+#' produces around 0.9% duplication with no leak present. The check reports the
+#' count as well as the proportion so that `max_prop` can be set from the data
+#' rather than guessed.
 #' @return An `attest_check`.
 #' @family leakage checks
 #' @examples
@@ -220,23 +229,36 @@ leak_duplicates <- function(max_prop = 0) {
   new_check("leak_duplicates", stage = "pre", run = function(ctx) {
     keys_tr <- do.call(paste, c(ctx$train[ctx$features], sep = "\r"))
     keys_te <- do.call(paste, c(ctx$test[ctx$features], sep = "\r"))
-    prop <- mean(keys_te %in% keys_tr)
+    hit <- keys_te %in% keys_tr
+    prop <- mean(hit)
     attest_result(
       "leak_duplicates",
       if (prop <= max_prop) "pass" else "fail",
       statistic = prop, threshold = max_prop,
-      message = sprintf("%.1f%% of test rows duplicate a training row", 100 * prop)
+      message = sprintf(
+        "%.2f%% of test rows duplicate a training row (%d of %d)",
+        100 * prop, sum(hit), length(hit)
+      )
     )
   })
 }
 
 #' Leakage check: a single feature is a near-deterministic proxy of the target
 #'
-#' For each feature, a one-variable model is fitted on the training set. For
-#' classification the statistic is accuracy; for regression it is R-squared.
-#' Any feature above `threshold` fails the check.
+#' For each feature, a one-variable model is fitted on the training set. The
+#' statistic is the area under the curve for a binary outcome, mean per-class
+#' recall for multiclass, and R-squared for regression. Any feature above
+#' `threshold` fails the check.
 #'
-#' @param threshold Maximum tolerated single-feature accuracy / R-squared.
+#' The statistic is deliberately not accuracy. A majority-class rule already
+#' achieves the base rate, so on a rare outcome -- a 3% claim rate, say --
+#' accuracy makes every feature look like a near-perfect proxy and the check
+#' refuses every model. All three statistics used here sit at chance for a
+#' feature with no predictive power, however skewed the outcome, and at one for
+#' a feature that reproduces it.
+#'
+#' @param threshold Maximum tolerated single-feature score: AUC for a binary
+#'   outcome, mean per-class recall for multiclass, R-squared for regression.
 #' @param n_boot Bootstrap replicates for the confidence interval on the
 #'   strongest feature's score; `0` disables it and the point estimate
 #'   decides.
@@ -265,29 +287,37 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
     multiclass <- identical(ctx$task, "multiclass")
     yb <- if (classification) as.integer(y) == 2L else as.numeric(y)
 
-    # Per-row contribution for each feature: a hit/miss indicator for
-    # classification, a fitted value for regression. Keeping these lets the
-    # max-over-features score be resampled without refitting.
+    # Per-row output of each one-variable model: a predicted probability for
+    # binary outcomes, a predicted class for multiclass, a fitted value for
+    # regression. Keeping these lets the max-over-features score be resampled
+    # without refitting.
     contrib <- vapply(ctx$features, function(f) {
       x <- ctx$train[[f]]
       if (length(unique(x)) < 2) {
-        return(if (classification) rep(0, n) else rep(mean(yb), n))
+        # A constant feature predicts the base rate and nothing more.
+        return(if (multiclass) {
+          rep(as.numeric(which.max(table(y))), n)
+        } else if (classification) {
+          rep(mean(yb), n)
+        } else {
+          rep(mean(yb), n)
+        })
       }
       if (multiclass) {
-        h <- stump_hits(x, y)
-        return(if (is.null(h)) rep(0, n) else h)
+        cl <- stump_class(x, y)
+        return(if (is.null(cl)) rep(as.numeric(which.max(table(y))), n) else cl)
       }
       d <- data.frame(y = y, x = x)
       if (classification) {
         fit <- tryCatch(stats::glm(y ~ x, data = d, family = stats::binomial()),
           error = function(e) NULL, warning = function(w) NULL
         )
-        # Perfect separation cannot be fitted but is itself proxy evidence,
-        # so every row counts as a hit.
+        # Perfect separation cannot be fitted but is itself proxy evidence, so
+        # the feature is credited with reproducing the outcome exactly.
         if (is.null(fit)) {
-          return(rep(1, n))
+          return(as.numeric(yb))
         }
-        as.numeric((stats::predict(fit, type = "response") > 0.5) == yb)
+        as.numeric(stats::predict(fit, type = "response"))
       } else {
         fit <- tryCatch(stats::lm(y ~ x, data = d), error = function(e) NULL)
         if (is.null(fit)) {
@@ -298,9 +328,23 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
     }, numeric(n))
     contrib <- matrix(contrib, nrow = n, dimnames = list(NULL, ctx$features))
 
+    # The statistic has to be unaffected by class balance. Accuracy is not: a
+    # majority-class rule already scores the base rate, so on a rare outcome
+    # every feature, noise included, looks like a near-perfect proxy. Binary
+    # outcomes are scored by AUC and multiclass by balanced accuracy, both of
+    # which sit at chance for a useless feature however skewed the outcome is,
+    # and at one for a feature that reproduces it.
+    yi <- as.integer(y)
     score_on <- function(i) {
+      if (multiclass) {
+        return(apply(contrib[i, , drop = FALSE], 2, function(pred) {
+          balanced_accuracy(yi[i], pred)
+        }))
+      }
       if (classification) {
-        return(colMeans(contrib[i, , drop = FALSE]))
+        return(apply(contrib[i, , drop = FALSE], 2, function(p) {
+          auc_stat(as.integer(yb[i]), p)
+        }))
       }
       sst <- sum((yb[i] - mean(yb[i]))^2)
       if (sst <= 0) {
@@ -731,7 +775,7 @@ shift_c2st <- function(auc_min = 0.6, alpha = 0.05, max_ref = 2000,
 # predicts its majority class. A feature that determines the outcome -- an
 # identifier, a field recorded after the label -- reaches an accuracy of one
 # either way, which is what the check is looking for.
-stump_hits <- function(x, y, bins = 10) {
+stump_class <- function(x, y, bins = 10) {
   g <- if (is.numeric(x)) {
     br <- unique(stats::quantile(x, seq(0, 1, length.out = bins + 1), na.rm = TRUE))
     if (length(br) < 2) {
@@ -745,11 +789,24 @@ stump_hits <- function(x, y, bins = 10) {
   if (!nrow(tab) || !ncol(tab)) {
     return(NULL)
   }
-  best <- colnames(tab)[max.col(tab, ties.method = "first")]
+  best <- max.col(tab, ties.method = "first")
   names(best) <- rownames(tab)
-  hit <- as.character(y) == best[as.character(g)]
-  hit[is.na(hit)] <- FALSE
-  as.numeric(hit)
+  pred <- unname(best[as.character(g)])
+  pred[is.na(pred)] <- which.max(table(y))
+  as.numeric(pred)
+}
+
+# Mean per-class recall: a majority-class rule scores 1/k however skewed the
+# outcome is, and a feature that reproduces the outcome scores one.
+balanced_accuracy <- function(truth, pred) {
+  cls <- sort(unique(truth))
+  if (length(cls) < 2) {
+    return(0)
+  }
+  mean(vapply(cls, function(k) {
+    ink <- truth == k
+    if (!any(ink)) NA_real_ else mean(pred[ink] == k)
+  }, numeric(1)), na.rm = TRUE)
 }
 
 psi <- function(expected, actual, eps = 1e-4) {

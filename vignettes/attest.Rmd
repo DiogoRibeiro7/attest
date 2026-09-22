@@ -528,6 +528,15 @@ will not find a leak spread across two features, nor one mediated by a grouping
 structure. `leak_duplicates()` finds exact duplicate rows, not near-duplicates.
 Passing means the obvious leaks are absent, not that the data is clean.
 
+**Duplication is not always leakage.** `leak_duplicates()` tolerates nothing by
+default, which is right when a duplicate row means the same record reached both
+partitions. On real data with low-cardinality features some duplication is
+arithmetic instead: two distinct subjects can share every recorded value. A
+motor portfolio of 68,000 policies described by seven mixed rating factors
+produces about 0.9% duplication with no leak present. The check reports the
+count as well as the proportion so that `max_prop` can be set from the data
+rather than guessed.
+
 **Calibration is measured where it was measured.** ECE is computed on the test
 split at fit time, with equal-width bins. It is a statement about that data on
 that day. Nothing recomputes it later.
@@ -585,8 +594,9 @@ Two of the checks needed a multiclass definition rather than a generalisation.
 Calibration uses top-label ECE: bin by the confidence given to the predicted
 class, and compare it with how often that class is right. Single-feature
 leakage cannot use a one-variable logistic fit, so for multiclass the feature
-is binned and each bin predicts its majority class. A feature that determines
-the outcome still scores near one, which is what the check is looking for.
+is binned and each bin predicts its majority class, scored by mean per-class
+recall. A feature that determines the outcome still scores one, which is what
+the check is looking for.
 
 ## Keeping a record
 

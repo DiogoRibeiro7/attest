@@ -133,6 +133,37 @@ misses by construction. Its scores are cross-fitted, because an in-sample area
 under the curve reads approximately 0.53 on two samples drawn from the same
 distribution and would report shift where there is none.
 
+The same principle applies to the leakage check, and applying it corrected a
+defect that simulation had not exposed. Screening a feature for its ability to
+reproduce the outcome by classification accuracy is a mistake whenever the
+outcome is rare, because a majority-class rule already achieves the base rate.
+On a portfolio of 67{,}856 motor policies \citep{dataCar} with a 6.8\% claim
+rate, all seven rating factors scored 0.9318 against a no-claim rate of
+0.9319: the statistic was reporting the class balance and nothing else
+(Table~\ref{tab:proxy}). At a 2.6\% event rate a pure-noise feature clears a
+0.95 threshold, so the check refuses every model---precisely in the rare-event
+settings the package is aimed at. Scoring by area under the curve, or by mean
+per-class recall for multiclass outcomes, leaves the statistic at chance for an
+uninformative feature however skewed the outcome. On the same data the ordering
+then becomes actuarially sensible: exposure is the strongest single predictor
+at 0.654 and gender the weakest at 0.503.
+
+\begin{table}[ht]
+\centering
+\caption{Score given to a pure-noise feature as the outcome becomes rarer.
+Accuracy tracks the base rate; area under the curve does not.}
+\label{tab:proxy}
+\begin{tabular}{lrr}
+\toprule
+Base rate & Accuracy & Area under the curve \\
+\midrule
+0.500 & 0.500 & 0.50 \\
+0.931 & 0.932 & 0.54 \\
+0.974 & 0.974 & 0.53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Refusal is where the guarantee ends}
 
 Split conformal prediction \citep{vovk2005,lei2018} provides marginal coverage

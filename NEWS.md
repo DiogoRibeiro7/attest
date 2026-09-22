@@ -123,3 +123,19 @@
   remains what you pass to `waive`, so the refusal message still quotes it.
 * Help topics are grouped with `@family`, so related checks, engines and
   ledger functions cross-reference each other.
+* `leak_target_proxy()` scores a feature by AUC for a binary outcome and by
+  mean per-class recall for multiclass, rather than by accuracy. Accuracy
+  tracks the base rate, because a majority-class rule already achieves it: on
+  a rare outcome every feature, noise included, scored close to one. Found on
+  real motor insurance data with a 6.8% claim rate, where all seven rating
+  factors scored 0.9318 against a no-claim rate of 0.9319. At a 2.6% event
+  rate the old statistic flagged pure noise and refused every model, which
+  would have made the package unusable on the rare-event problems it is aimed
+  at. The new statistics sit at chance for a useless feature however skewed
+  the outcome, and at one for a feature that reproduces it. Regression keeps
+  R-squared, which was never balance-sensitive.
+* `leak_duplicates()` reports the number of duplicated rows as well as the
+  proportion. The zero-tolerance default is unchanged, but the help and the
+  vignette now record that real data with low-cardinality features produces
+  some duplication arithmetically rather than through leakage -- about 0.9% in
+  a 68,000-policy motor portfolio -- so `max_prop` can be set from the data.
