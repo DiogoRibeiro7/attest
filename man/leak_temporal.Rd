@@ -21,3 +21,9 @@ Leakage check: test rows must not precede training rows in time
 \examples{
 leak_temporal("order_date")
 }
+\seealso{
+Other leakage checks: 
+\code{\link{leak_duplicates}()},
+\code{\link{leak_target_proxy}()}
+}
+\concept{leakage checks}

@@ -16,7 +16,10 @@
 #'   confidence interval for `statistic`. `c(NA, NA)` when not estimated.
 #' @param message Human-readable summary.
 #' @param evidence Optional list of supporting objects.
+#' @param label Human-readable check label. When omitted, a label is derived
+#'   from `id`.
 #' @return An object of class `attest_result`.
+#' @family checks
 #' @examples
 #' attest_result("my_check", "weak",
 #'   statistic = 0.04,
@@ -25,12 +28,12 @@
 #' @export
 attest_result <- function(id, status, statistic = NA_real_, threshold = NA_real_,
                           ci = c(NA_real_, NA_real_), message = "",
-                          evidence = list()) {
+                          evidence = list(), label = NULL) {
   status <- match.arg(status, c("pass", "weak", "fail", "waived", "untestable", "info"))
   if (length(ci) != 2) rlang::abort("`ci` must have length 2")
   structure(
     list(
-      id = id, status = status, statistic = statistic,
+      id = id, label = check_label(id, label), status = status, statistic = statistic,
       threshold = threshold, ci = as.numeric(ci),
       message = message, evidence = evidence
     ),
@@ -51,6 +54,7 @@ attest_result <- function(id, status, statistic = NA_real_, threshold = NA_real_
 #'   returns `c(NA, NA)`.
 #' @param conf Confidence level.
 #' @return A numeric vector of length 2.
+#' @family checks
 #' @examples
 #' y <- rbinom(200, 1, 0.3)
 #' attest_boot(function(i) mean(y[i]), n = length(y), n_boot = 200)
@@ -89,6 +93,7 @@ attest_boot <- function(stat, n, n_boot = 1000, conf = 0.95) {
 #'   threshold (ECE, PSI), `"at_least"` when it should not fall below it
 #'   (coverage).
 #' @return One of `"pass"`, `"weak"`, `"fail"`.
+#' @family checks
 #' @examples
 #' attest_verdict(0.04, c(0.02, 0.09), threshold = 0.05, direction = "at_most")
 #' attest_verdict(0.04, c(0.02, 0.045), threshold = 0.05, direction = "at_most")
@@ -129,7 +134,10 @@ fmt_ci <- function(ci) {
 #' @param blocking If `TRUE` a `"fail"` blocks certification.
 #' @param stage One of `"pre"` (before fitting; sees only data) or `"post"`
 #'   (after fitting; sees the model).
+#' @param label Human-readable label used in console output, certificates and
+#'   reports. Defaults to a title-cased version of `id`.
 #' @return An object of class `attest_check`.
+#' @family checks
 #' @examples
 #' # a check that refuses training data with too many missing cells
 #' max_missing <- new_check("max_missing", stage = "pre", run = function(ctx) {
@@ -140,17 +148,49 @@ fmt_ci <- function(ci) {
 #' })
 #' max_missing
 #' @export
-new_check <- function(id, run, blocking = TRUE, stage = c("pre", "post")) {
+new_check <- function(id, run, blocking = TRUE, stage = c("pre", "post"),
+                      label = NULL) {
   stage <- match.arg(stage)
   stopifnot(is.character(id), length(id) == 1, is.function(run))
-  structure(list(id = id, run = run, blocking = blocking, stage = stage),
+  structure(
+    list(
+      id = id, label = check_label(id, label),
+      run = run, blocking = blocking, stage = stage
+    ),
     class = "attest_check"
   )
 }
 
+check_label <- function(id, label = NULL) {
+  if (!is.null(label)) {
+    stopifnot(is.character(label), length(label) == 1, nzchar(label))
+    return(label)
+  }
+  known <- c(
+    leak_duplicates = "Duplicate row leakage",
+    leak_target_proxy = "Target proxy leakage",
+    leak_temporal = "Temporal leakage",
+    imbalance_report = "Class imbalance",
+    calib_ece = "Calibration error",
+    conformal_split = "Conformal coverage",
+    shift_monitor = "Population stability shift",
+    shift_c2st = "Classifier two-sample shift"
+  )
+  if (id %in% names(known)) {
+    return(unname(known[[id]]))
+  }
+  words <- strsplit(gsub("_+", " ", id), " +", fixed = FALSE)[[1]]
+  words <- words[nzchar(words)]
+  if (!length(words)) {
+    return(id)
+  }
+  words[1] <- paste0(toupper(substr(words[1], 1, 1)), substr(words[1], 2, nchar(words[1])))
+  paste(words, collapse = " ")
+}
+
 #' @export
 print.attest_check <- function(x, ...) {
-  cat("<attest_check> ", x$id,
+  cat("<attest_check> ", x$label, " <", x$id, ">",
     " [", x$stage, if (x$blocking) ", blocking" else "", "]\n",
     sep = ""
   )
@@ -170,6 +210,7 @@ print.attest_check <- function(x, ...) {
 #' test set, it is there, and resampling would only describe a hypothetical
 #' other dataset. The same reasoning applies to [leak_temporal()].
 #' @return An `attest_check`.
+#' @family leakage checks
 #' @examples
 #' leak_duplicates()
 #' # tolerate a small overlap
@@ -210,6 +251,7 @@ leak_duplicates <- function(max_prop = 0) {
 #' than refitting each replicate. This keeps the check affordable and captures
 #' sampling noise in the score, but not the variability of the fits themselves.
 #' @return An `attest_check`.
+#' @family leakage checks
 #' @examples
 #' leak_target_proxy()
 #' # a stricter bar, with the interval disabled
@@ -296,6 +338,7 @@ leak_target_proxy <- function(threshold = 0.95, n_boot = 500) {
 #' @param max_prop Maximum tolerated proportion of test rows dated before the
 #'   last training row.
 #' @return An `attest_check`.
+#' @family leakage checks
 #' @examples
 #' leak_temporal("order_date")
 #' @export
@@ -322,6 +365,7 @@ leak_temporal <- function(time, max_prop = 0) {
 #' Class imbalance report (informational, never blocks)
 #'
 #' @return An `attest_check`.
+#' @family checks
 #' @examples
 #' imbalance_report()
 #' @export
@@ -357,6 +401,7 @@ imbalance_report <- function() {
 #' @param n_boot Bootstrap replicates for the confidence interval; `0`
 #'   disables it and the point estimate decides.
 #' @return An `attest_check`.
+#' @family calibration checks
 #' @examples
 #' calib_ece()
 #' calib_ece(max = 0.05, bins = 20)
@@ -473,6 +518,7 @@ coverage_curve <- function(calib_scores, test_scores,
 #' calibration quantile `q` is treated as fixed, so the interval understates
 #' total uncertainty when the calibration set is small.
 #' @return An `attest_check`.
+#' @family conformal checks
 #' @examples
 #' conformal_split()
 #' # 95% target coverage
@@ -583,6 +629,7 @@ conformal_scores <- function(engine, model, data, outcome, task) {
 #' you predict in large batches and want subtle movement reported, lower
 #' `threshold` -- the null calibration will still hold the false-positive rate.
 #' @return An `attest_check`.
+#' @family shift checks
 #' @examples
 #' shift_monitor()
 #' # skip the null calibration on a latency-sensitive prediction path
@@ -655,6 +702,7 @@ shift_monitor <- function(threshold = 0.2, bins = 10, support_tol = 0.05,
 #' @param interactions Passed to [attest_c2st()]; keep `TRUE` to detect changes
 #'   in the dependence between features.
 #' @return An `attest_check`.
+#' @family shift checks
 #' @examples
 #' shift_c2st()
 #' # demand a clearer separation before flagging

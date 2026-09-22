@@ -24,3 +24,10 @@ define the interface: \code{\link[=engine_fit]{engine_fit()}} and \code{\link[=e
 engine_glm()
 engine_glm(weights = NULL)
 }
+\seealso{
+Other engines: 
+\code{\link{engine_fit}()},
+\code{\link{engine_parsnip}()},
+\code{\link{engine_predict}()}
+}
+\concept{engines}

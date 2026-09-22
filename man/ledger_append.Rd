@@ -29,3 +29,12 @@ led <- attest_ledger(tempfile(fileext = ".ndjson"))
 ledger_append(led, m, note = "nightly run")
 nrow(ledger_entries(led))
 }
+\seealso{
+Other ledgers: 
+\code{\link{attest_ledger}()},
+\code{\link{attest_manifest}()},
+\code{\link{ledger_entries}()},
+\code{\link{ledger_find}()},
+\code{\link{ledger_verify}()}
+}
+\concept{ledgers}

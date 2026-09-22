@@ -35,3 +35,10 @@ d$y <- factor(rbinom(400, 1, plogis(d$x)))
 fit <- engine_fit(engine_glm(), y ~ x, d, "classification")
 head(engine_predict(engine_glm(), fit, d, type = "prob"))
 }
+\seealso{
+Other engines: 
+\code{\link{engine_fit}()},
+\code{\link{engine_parsnip}()},
+\code{\link{engines}}
+}
+\concept{engines}

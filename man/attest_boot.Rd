@@ -29,3 +29,11 @@ accounts for sampling noise rather than resting on a point estimate.
 y <- rbinom(200, 1, 0.3)
 attest_boot(function(i) mean(y[i]), n = length(y), n_boot = 200)
 }
+\seealso{
+Other checks: 
+\code{\link{attest_result}()},
+\code{\link{attest_verdict}()},
+\code{\link{imbalance_report}()},
+\code{\link{new_check}()}
+}
+\concept{checks}

@@ -37,3 +37,10 @@ if (requireNamespace("parsnip", quietly = TRUE)) {
   engine_parsnip(parsnip::logistic_reg())
 }
 }
+\seealso{
+Other engines: 
+\code{\link{engine_fit}()},
+\code{\link{engine_predict}()},
+\code{\link{engines}}
+}
+\concept{engines}

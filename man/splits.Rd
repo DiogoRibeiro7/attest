@@ -35,3 +35,4 @@ split_random(prop = 0.25, calib = 0.2)
 split_grouped("customer_id")
 split_temporal("order_date", prop = 0.3)
 }
+\concept{splitting}

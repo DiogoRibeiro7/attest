@@ -51,3 +51,10 @@ shifted <- data.frame(x = rnorm(300, 1), z = rnorm(300))
 round(attest_c2st(a, same, c("x", "z"))$p_value, 3)
 round(attest_c2st(a, shifted, c("x", "z"))$p_value, 3)
 }
+\seealso{
+Other shift checks: 
+\code{\link{attest_density_ratio}()},
+\code{\link{shift_c2st}()},
+\code{\link{shift_monitor}()}
+}
+\concept{shift checks}

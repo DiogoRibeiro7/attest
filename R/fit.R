@@ -13,6 +13,7 @@
 #'   a failure, so inconclusive evidence blocks certification. Set it when
 #'   scarce data must not buy a certificate by widening intervals.
 #' @return An object of class `attest_spec`.
+#' @family fitting
 #' @examples
 #' spec <- attest_spec(split_random(0.25), on_fail = "flag")
 #' spec
@@ -50,7 +51,8 @@ print.attest_spec <- function(x, ...) {
   cli::cli_h3("attest_spec")
   cli::cli_text("split: {.field {x$split$id}}; on_fail: {.val {x$on_fail}}")
   for (ch in x$checks) {
-    cli::cli_li("{ch$id} {.emph ({ch$stage}{if (ch$blocking) ', blocking' else ''})}")
+    note <- paste0(ch$stage, if (ch$blocking) ", blocking" else "")
+    cli::cli_li("{ch$label} {.field {ch$id}} {.emph ({note})}")
   }
   invisible(x)
 }
@@ -92,6 +94,7 @@ is_classification <- function(task) task %in% c("classification", "multiclass")
 #'   certificate and printed in every report.
 #' @param quiet Suppress progress output.
 #' @return An object of class `attested_model`.
+#' @family fitting
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(2000), x2 = rnorm(2000))
@@ -143,10 +146,11 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
     for (ch in spec$checks) {
       if (ch$stage != stage) next
       res <- if (ch$id %in% waive) {
-        attest_result(ch$id, "waived", message = reason)
+        attest_result(ch$id, "waived", message = reason, label = ch$label)
       } else {
         ch$run(ctx)
       }
+      res$label <- ch$label %||% res$label %||% check_label(res$id)
       results[[ch$id]] <<- res
       if (!quiet) report_line(res, ch$blocking)
     }
@@ -231,7 +235,10 @@ report_line <- function(res, blocking) {
     untestable = cli::col_grey("-"),
     info = cli::col_blue("i")
   )
-  cli::cat_line(sprintf("%s %-20s %-11s %s", sym, res$id, res$status, res$message))
+  cli::cat_line(sprintf(
+    "%s %-28s %-11s %s",
+    sym, res$label %||% res$id, res$status, res$message
+  ))
 }
 
 hash_obj <- function(x) {
@@ -281,6 +288,7 @@ spec_fingerprint <- function(spec) {
 #' @return `certificate()` returns the certificate; `is_sealed()` a logical;
 #'   `verify()` a logical with attribute `"diff"` listing what changed;
 #'   `unseal()` the raw engine object.
+#' @family certificates
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))

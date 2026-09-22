@@ -42,3 +42,8 @@ is_sealed(m)
 verify(m)
 class(unseal(m))
 }
+\seealso{
+Other certificates: 
+\code{\link{attest_manifest}()}
+}
+\concept{certificates}
