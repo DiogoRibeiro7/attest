@@ -23,6 +23,7 @@ and \code{\link[=report]{report()}} to render a model card.
 Useful links:
 \itemize{
   \item \url{https://github.com/DiogoRibeiro7/attest}
+  \item \url{https://diogoribeiro7.github.io/attest/}
   \item Report bugs at \url{https://github.com/DiogoRibeiro7/attest/issues}
 }
 

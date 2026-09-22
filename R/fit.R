@@ -192,6 +192,15 @@ attest_fit <- function(spec, formula, data, engine = engine_glm(),
   }
 
   conf <- results$conformal_split$evidence
+  if (is.null(conf)) {
+    # Without a calibrated quantile there is no interval to return, so every
+    # prediction would be refused. This is a real condition rather than
+    # progress output, so it is not silenced by `quiet`.
+    rlang::warn(paste(
+      "no conformal check in the specification:",
+      "predictions will have no interval and will be refused"
+    ))
+  }
   shift <- results$shift_monitor$evidence
   c2st <- results$shift_c2st$evidence
   hashes <- list(

@@ -117,3 +117,38 @@ test_that("ranger engine works when available", {
   expect_s3_class(m, "attested_model")
   expect_true(is.numeric(certificate(m)$results$calib_ece$statistic))
 })
+
+test_that("a specification without a conformal check says so", {
+  # Without a calibrated quantile there is no interval, so every row is
+  # refused. That is defensible, but it was reported as a reweighting
+  # failure when no reweighting had taken place, and was silent at fit time.
+  d <- make_data(1200)
+  expect_warning(
+    attest_fit(
+      attest_spec(checks = list(shift_monitor())),
+      y ~ x1 + x2, d, engine_glm()
+    ),
+    "no conformal check"
+  )
+  # the warning is the point of the test above; silence it here
+  m <- suppressWarnings(attest_fit(
+    attest_spec(checks = list(shift_monitor())),
+    y ~ x1 + x2, d, engine_glm(),
+    quiet = TRUE
+  ))
+  p <- predict(m, d[1:10, ])
+  expect_true(all(p$.status == "refused"))
+  expect_match(unique(p$.reason), "no conformal check", all = TRUE)
+  expect_false(any(grepl("reweighting", p$.reason)))
+})
+
+test_that("a specification with a conformal check predicts normally", {
+  d <- make_data(1200)
+  m <- attest_fit(
+    attest_spec(checks = list(conformal_split(), shift_monitor())),
+    y ~ x1 + x2, d, engine_glm(),
+    quiet = TRUE
+  )
+  p <- predict(m, d[1:10, ])
+  expect_true(all(p$.status == "valid"))
+})

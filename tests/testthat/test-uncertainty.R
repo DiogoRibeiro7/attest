@@ -78,14 +78,15 @@ test_that("a straddling interval yields weak, and strict promotes it to failure"
     attest_fit(tight, y ~ x1 + x2, d, engine_glm(), quiet = TRUE),
     "refused to issue certificate"
   )
-  m <- attest_fit(
+  # this specification deliberately omits a conformal check, which warns
+  m <- suppressWarnings(attest_fit(
     attest_spec(
       checks = list(calib_ece(max = 1e-4), shift_monitor()),
       on_fail = "flag"
     ),
     y ~ x1 + x2, d, engine_glm(),
     quiet = TRUE
-  )
+  ))
   expect_equal(certificate(m)$results$calib_ece$status, "fail")
 
   # find a threshold that genuinely straddles
@@ -94,7 +95,7 @@ test_that("a straddling interval yields weak, and strict promotes it to failure"
   )$results$calib_ece$ci
   mid <- mean(ci)
   spec <- attest_spec(checks = list(calib_ece(max = mid), shift_monitor()))
-  mw <- attest_fit(spec, y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+  mw <- suppressWarnings(attest_fit(spec, y ~ x1 + x2, d, engine_glm(), quiet = TRUE))
   expect_equal(certificate(mw)$results$calib_ece$status, "weak")
   # weak is not a failure by default
   expect_equal(certificate(mw)$status, "valid")
@@ -198,11 +199,11 @@ test_that("the multiclass proxy statistic is also balance-free", {
   d <- data.frame(noise = rnorm(n))
   # heavily skewed three-class outcome
   d$y <- factor(sample(c("a", "b", "c"), n, TRUE, prob = c(0.9, 0.07, 0.03)))
-  m <- attest_fit(
+  m <- suppressWarnings(attest_fit(
     attest_spec(on_fail = "flag", checks = list(leak_target_proxy(n_boot = 0))),
     y ~ noise, d, engine_ranger(num.trees = 50),
     quiet = TRUE
-  )
+  ))
   s <- certificate(m)$results$leak_target_proxy$statistic
   # mean per-class recall for a useless feature sits near 1/3, not near 0.9
   expect_lt(s, 0.6)

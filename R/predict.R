@@ -132,7 +132,12 @@ predict.attested_model <- function(object, newdata, enforce = TRUE, ...) {
   if (any(is.infinite(q))) {
     gone <- is.infinite(q) & status != "refused"
     status[gone] <- "refused"
-    reason[gone] <- "no conformal evidence after reweighting"
+    reason[gone] <- if (is.null(object$conformal)) {
+      # Not a reweighting failure: the specification never calibrated one.
+      "specification included no conformal check, so no interval is defined"
+    } else {
+      "no conformal evidence after reweighting"
+    }
     if (enforce) pred[gone] <- NA_real_
   }
 
