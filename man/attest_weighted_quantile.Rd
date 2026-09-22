@@ -63,3 +63,9 @@ Tibshirani, R. J., Barber, R. F., Candes, E. J. and Ramdas, A. (2019)
 Conformal Prediction Under Covariate Shift. \emph{Advances in Neural
 Information Processing Systems}.
 }
+\seealso{
+Other conformal checks: 
+\code{\link{attest_density_ratio}()},
+\code{\link{conformal_split}()}
+}
+\concept{conformal checks}

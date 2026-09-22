@@ -11,10 +11,32 @@ test_that("fit issues a valid certificate and predictions carry status", {
   expect_s3_class(m, "attested_model")
   expect_true(is_sealed(m))
   expect_equal(certificate(m)$status, "valid")
+  expect_equal(certificate(m)$results$leak_duplicates$label, "Duplicate row leakage")
   p <- predict(m, d[1:10, ])
   expect_s3_class(p, "attested_prediction")
   expect_true(all(p$.status == "valid"))
   expect_true(all(c(".pred", ".set", ".status", ".shift", ".reason") %in% names(p)))
+})
+
+test_that("checks and results carry human-readable labels", {
+  d <- make_data()
+  max_missing <- new_check(
+    "max_missing",
+    label = "Missingness guard", stage = "pre",
+    run = function(ctx) {
+      prop <- mean(is.na(ctx$train[ctx$features]))
+      attest_result("max_missing", if (prop <= 0.05) "pass" else "fail",
+        statistic = prop, threshold = 0.05
+      )
+    }
+  )
+  m <- attest_fit(
+    attest_spec(checks = list(max_missing, conformal_split())),
+    y ~ x1 + x2, d, engine_glm(),
+    quiet = TRUE
+  )
+  expect_equal(certificate(m)$results$max_missing$label, "Missingness guard")
+  expect_equal(attest_result("my_check", "info")$label, "My check")
 })
 
 test_that("out-of-support rows are refused unless enforce = FALSE", {

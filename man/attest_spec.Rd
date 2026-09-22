@@ -41,3 +41,8 @@ Build an attestation specification
 spec <- attest_spec(split_random(0.25), on_fail = "flag")
 spec
 }
+\seealso{
+Other fitting: 
+\code{\link{attest_fit}()}
+}
+\concept{fitting}

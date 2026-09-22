@@ -53,3 +53,10 @@ shift_c2st()
 # demand a clearer separation before flagging
 shift_c2st(auc_min = 0.7)
 }
+\seealso{
+Other shift checks: 
+\code{\link{attest_c2st}()},
+\code{\link{attest_density_ratio}()},
+\code{\link{shift_monitor}()}
+}
+\concept{shift checks}

@@ -27,3 +27,4 @@ confidence interval over test rows and the verdict follows
 calib_ece()
 calib_ece(max = 0.05, bins = 20)
 }
+\concept{calibration checks}

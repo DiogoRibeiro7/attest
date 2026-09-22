@@ -27,6 +27,7 @@
 #'   honoured, keeping the fit affordable.
 #' @return A list with `auc` (held-out), `p_value` (one-sided, against the null
 #'   of no shift), `n_ref` and `n_new`.
+#' @family shift checks
 #' @examples
 #' set.seed(1)
 #' a <- data.frame(x = rnorm(300), z = rnorm(300))

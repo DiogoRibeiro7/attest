@@ -5,6 +5,7 @@
 #'
 #' @param ... Arguments passed to the underlying fitting function.
 #' @return An object of class `attest_engine`.
+#' @family engines
 #' @examples
 #' engine_glm()
 #' engine_glm(weights = NULL)
@@ -49,6 +50,7 @@ engine_ranger <- function(...) {
 #'
 #' @param spec A parsnip `model_spec`, such as `parsnip::logistic_reg()`.
 #' @return An object of class `attest_engine`.
+#' @family engines
 #' @examples
 #' if (requireNamespace("parsnip", quietly = TRUE)) {
 #'   engine_parsnip(parsnip::logistic_reg())
@@ -126,6 +128,7 @@ print.attest_engine <- function(x, ...) {
 #' @param data Training data.
 #' @param task `"classification"` or `"regression"`.
 #' @return A fitted object.
+#' @family engines
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x = rnorm(400))
@@ -144,6 +147,7 @@ engine_fit <- function(engine, formula, data, task) UseMethod("engine_fit")
 #'   or `"prob_matrix"` (one column per class, in level order, for multiclass
 #'   outcomes).
 #' @return A numeric vector.
+#' @family engines
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x = rnorm(400))
@@ -220,6 +224,7 @@ engine_predict.engine_ranger <- function(engine, object, newdata,
 #'   partition.
 #' @param time Name of a time column; the latest rows become the test set.
 #' @return An object of class `attest_split`.
+#' @family splitting
 #' @examples
 #' split_random(prop = 0.25, calib = 0.2)
 #' split_grouped("customer_id")

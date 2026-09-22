@@ -34,3 +34,11 @@ returned.
 attest_verdict(0.04, c(0.02, 0.09), threshold = 0.05, direction = "at_most")
 attest_verdict(0.04, c(0.02, 0.045), threshold = 0.05, direction = "at_most")
 }
+\seealso{
+Other checks: 
+\code{\link{attest_boot}()},
+\code{\link{attest_result}()},
+\code{\link{imbalance_report}()},
+\code{\link{new_check}()}
+}
+\concept{checks}

@@ -28,3 +28,12 @@ led <- attest_ledger(tempfile(fileext = ".ndjson"))
 ledger_append(led, m)
 ledger_verify(led)
 }
+\seealso{
+Other ledgers: 
+\code{\link{attest_ledger}()},
+\code{\link{attest_manifest}()},
+\code{\link{ledger_append}()},
+\code{\link{ledger_entries}()},
+\code{\link{ledger_find}()}
+}
+\concept{ledgers}

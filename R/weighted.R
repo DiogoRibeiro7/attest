@@ -20,6 +20,8 @@
 #'   quantile.
 #' @return A list with `calib` and `new`, the weights for each set, and `auc`,
 #'   the in-sample area under the curve of the discriminating classifier.
+#' @family conformal checks
+#' @family shift checks
 #' @examples
 #' set.seed(1)
 #' a <- data.frame(x = rnorm(300))
@@ -123,6 +125,7 @@ auc_stat <- function(y, p) {
 #' @param w_new Weights for the points being predicted, one per row.
 #' @param alpha Miscoverage level; the quantile targets `1 - alpha`.
 #' @return A numeric vector the length of `w_new`, possibly containing `Inf`.
+#' @family conformal checks
 #' @details
 #' With every weight equal to 1 this reduces exactly to the ordinary split
 #' conformal quantile, so enabling weighting costs nothing when nothing has

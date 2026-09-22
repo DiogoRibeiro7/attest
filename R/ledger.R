@@ -7,6 +7,8 @@
 #'
 #' @param x An `attested_model`.
 #' @return A named list.
+#' @family certificates
+#' @family ledgers
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
@@ -97,6 +99,7 @@ seal_entry <- function(entry, key) {
 #' @param key Optional secret key. When given, entries are sealed with an HMAC
 #'   and the same key is needed to verify them.
 #' @return An object of class `attest_ledger`.
+#' @family ledgers
 #' @examples
 #' led <- attest_ledger(tempfile(fileext = ".ndjson"))
 #' led
@@ -126,6 +129,7 @@ print.attest_ledger <- function(x, ...) {
 #' @param note Optional free text stored with the entry, such as the run or
 #'   pipeline that produced the model.
 #' @return The ledger, invisibly.
+#' @family ledgers
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
@@ -160,6 +164,7 @@ ledger_append <- function(ledger, x, note = NULL) {
 #'
 #' @param ledger An [attest_ledger()].
 #' @return A list of entries, oldest first. Empty if the file does not exist.
+#' @family ledgers
 #' @examples
 #' led <- attest_ledger(tempfile(fileext = ".ndjson"))
 #' length(ledger_entries(led))
@@ -186,6 +191,7 @@ ledger_entries <- function(ledger) {
 #' @param ledger An [attest_ledger()].
 #' @return A logical, `TRUE` when the chain is intact, with attribute
 #'   `"problems"` describing any breaks.
+#' @family ledgers
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
@@ -223,6 +229,7 @@ ledger_verify <- function(ledger) {
 #' @param ledger An [attest_ledger()].
 #' @param x An `attested_model`, or a certificate id.
 #' @return The matching entry, or `NULL`.
+#' @family ledgers
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))

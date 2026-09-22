@@ -11,7 +11,8 @@ attest_result(
   threshold = NA_real_,
   ci = c(NA_real_, NA_real_),
   message = "",
-  evidence = list()
+  evidence = list(),
+  label = NULL
 )
 }
 \arguments{
@@ -30,6 +31,9 @@ confidence interval for \code{statistic}. \code{c(NA, NA)} when not estimated.}
 \item{message}{Human-readable summary.}
 
 \item{evidence}{Optional list of supporting objects.}
+
+\item{label}{Human-readable check label. When omitted, a label is derived
+from \code{id}.}
 }
 \value{
 An object of class \code{attest_result}.
@@ -49,3 +53,11 @@ attest_result("my_check", "weak",
   threshold = 0.05, ci = c(0.02, 0.09)
 )
 }
+\seealso{
+Other checks: 
+\code{\link{attest_boot}()},
+\code{\link{attest_verdict}()},
+\code{\link{imbalance_report}()},
+\code{\link{new_check}()}
+}
+\concept{checks}

@@ -25,3 +25,16 @@ d$y <- factor(rbinom(1000, 1, plogis(d$x1 - d$x2)))
 m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
 str(attest_manifest(m))
 }
+\seealso{
+Other certificates: 
+\code{\link{certificate}()}
+
+Other ledgers: 
+\code{\link{attest_ledger}()},
+\code{\link{ledger_append}()},
+\code{\link{ledger_entries}()},
+\code{\link{ledger_find}()},
+\code{\link{ledger_verify}()}
+}
+\concept{certificates}
+\concept{ledgers}

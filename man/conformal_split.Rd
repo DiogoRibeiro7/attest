@@ -47,3 +47,9 @@ conformal_split()
 # 95\% target coverage
 conformal_split(alpha = 0.05)
 }
+\seealso{
+Other conformal checks: 
+\code{\link{attest_density_ratio}()},
+\code{\link{attest_weighted_quantile}()}
+}
+\concept{conformal checks}

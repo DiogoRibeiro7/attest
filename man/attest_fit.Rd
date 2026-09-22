@@ -47,3 +47,8 @@ m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
 certificate(m)
 predict(m, d[1:3, ])
 }
+\seealso{
+Other fitting: 
+\code{\link{attest_spec}()}
+}
+\concept{fitting}

@@ -58,3 +58,4 @@ nd <- d[1:2, ]
 nd$x1[1] <- 50
 predict(m, nd)
 }
+\concept{prediction}

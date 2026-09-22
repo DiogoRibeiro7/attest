@@ -28,3 +28,10 @@ d$y <- factor(rbinom(400, 1, plogis(d$x)))
 fit <- engine_fit(engine_glm(), y ~ x, d, "classification")
 class(fit)
 }
+\seealso{
+Other engines: 
+\code{\link{engine_parsnip}()},
+\code{\link{engine_predict}()},
+\code{\link{engines}}
+}
+\concept{engines}

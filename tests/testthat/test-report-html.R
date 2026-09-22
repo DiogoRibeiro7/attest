@@ -84,6 +84,7 @@ test_that("the card carries the certificate facts", {
   expect_true(grepl(ce$engine, txt, fixed = TRUE))
   expect_true(grepl(substr(ce$hashes$model, 1, 12), txt, fixed = TRUE))
   for (id in names(ce$results)) expect_true(grepl(id, txt, fixed = TRUE))
+  for (r in ce$results) expect_true(grepl(r$label, txt, fixed = TRUE))
 })
 
 test_that("the charts are well-formed SVG inside the viewBox", {

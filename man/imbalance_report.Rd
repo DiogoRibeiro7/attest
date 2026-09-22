@@ -15,3 +15,11 @@ Class imbalance report (informational, never blocks)
 \examples{
 imbalance_report()
 }
+\seealso{
+Other checks: 
+\code{\link{attest_boot}()},
+\code{\link{attest_result}()},
+\code{\link{attest_verdict}()},
+\code{\link{new_check}()}
+}
+\concept{checks}

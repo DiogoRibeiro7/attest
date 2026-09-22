@@ -37,3 +37,9 @@ leak_target_proxy()
 # a stricter bar, with the interval disabled
 leak_target_proxy(threshold = 0.9, n_boot = 0)
 }
+\seealso{
+Other leakage checks: 
+\code{\link{leak_duplicates}()},
+\code{\link{leak_temporal}()}
+}
+\concept{leakage checks}

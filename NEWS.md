@@ -115,3 +115,11 @@
 * `report()` gains `newdata`, adding a shift section with PSI per feature for a
   supplied batch.
 * Certificates now store per-bin calibration figures and a coverage curve.
+* Checks and results carry a human-readable `label` alongside their `id`,
+  shown in console output, `print()` on a specification, and both report
+  formats, which now have a label column beside the identifier. Built-in
+  checks have written labels; anything else is title-cased from its `id`, and
+  `new_check(label =)` or `attest_result(label =)` override that. The `id`
+  remains what you pass to `waive`, so the refusal message still quotes it.
+* Help topics are grouped with `@family`, so related checks, engines and
+  ledger functions cross-reference each other.

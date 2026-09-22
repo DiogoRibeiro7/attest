@@ -183,9 +183,13 @@ report_html <- function(x, newdata = NULL) {
       sprintf("[%s, %s]", fmt_num(ci[1]), fmt_num(ci[2]))
     }
     sprintf(
-      "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>",
-      html_escape(r$id), status_badge(r$status), fmt_num(r$statistic),
-      ci_txt, fmt_num(r$threshold), html_escape(r$message)
+      paste0(
+        "<tr><td>%s</td><td><code>%s</code></td><td>%s</td>",
+        "<td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+      ),
+      html_escape(r$label %||% r$id), html_escape(r$id),
+      status_badge(r$status), fmt_num(r$statistic), ci_txt,
+      fmt_num(r$threshold), html_escape(r$message)
     )
   }, character(1))
 
@@ -271,7 +275,7 @@ report_html <- function(x, newdata = NULL) {
     ),
     "</ul>",
     "<h2>Checks</h2>",
-    "<table><thead><tr><th>check</th><th>status</th><th>statistic</th>",
+    "<table><thead><tr><th>label</th><th>check</th><th>status</th><th>statistic</th>",
     "<th>95% CI</th><th>threshold</th><th>detail</th></tr></thead><tbody>",
     rows,
     "</tbody></table>",

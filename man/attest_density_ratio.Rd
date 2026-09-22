@@ -42,3 +42,15 @@ b <- data.frame(x = rnorm(300, 1))
 w <- attest_density_ratio(a, b, "x")
 round(w$auc, 2)
 }
+\seealso{
+Other conformal checks: 
+\code{\link{attest_weighted_quantile}()},
+\code{\link{conformal_split}()}
+
+Other shift checks: 
+\code{\link{attest_c2st}()},
+\code{\link{shift_c2st}()},
+\code{\link{shift_monitor}()}
+}
+\concept{conformal checks}
+\concept{shift checks}

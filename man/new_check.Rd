@@ -4,7 +4,7 @@
 \alias{new_check}
 \title{Define a new check}
 \usage{
-new_check(id, run, blocking = TRUE, stage = c("pre", "post"))
+new_check(id, run, blocking = TRUE, stage = c("pre", "post"), label = NULL)
 }
 \arguments{
 \item{id}{Unique identifier.}
@@ -15,6 +15,9 @@ new_check(id, run, blocking = TRUE, stage = c("pre", "post"))
 
 \item{stage}{One of \code{"pre"} (before fitting; sees only data) or \code{"post"}
 (after fitting; sees the model).}
+
+\item{label}{Human-readable label used in console output, certificates and
+reports. Defaults to a title-cased version of \code{id}.}
 }
 \value{
 An object of class \code{attest_check}.
@@ -35,3 +38,11 @@ max_missing <- new_check("max_missing", stage = "pre", run = function(ctx) {
 })
 max_missing
 }
+\seealso{
+Other checks: 
+\code{\link{attest_boot}()},
+\code{\link{attest_result}()},
+\code{\link{attest_verdict}()},
+\code{\link{imbalance_report}()}
+}
+\concept{checks}

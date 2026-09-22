@@ -50,3 +50,12 @@ processes writing at once.
 led <- attest_ledger(tempfile(fileext = ".ndjson"))
 led
 }
+\seealso{
+Other ledgers: 
+\code{\link{attest_manifest}()},
+\code{\link{ledger_append}()},
+\code{\link{ledger_entries}()},
+\code{\link{ledger_find}()},
+\code{\link{ledger_verify}()}
+}
+\concept{ledgers}

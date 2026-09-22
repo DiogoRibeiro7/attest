@@ -28,3 +28,9 @@ leak_duplicates()
 # tolerate a small overlap
 leak_duplicates(max_prop = 0.01)
 }
+\seealso{
+Other leakage checks: 
+\code{\link{leak_target_proxy}()},
+\code{\link{leak_temporal}()}
+}
+\concept{leakage checks}

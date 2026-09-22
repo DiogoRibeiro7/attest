@@ -33,6 +33,7 @@
 #'   `"enforced"` attribute.
 #' @param ... Unused.
 #' @return A tibble of class `attested_prediction`.
+#' @family prediction
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
@@ -281,6 +282,7 @@ print.attested_prediction <- function(x, ...) {
 #'   gains a shift section for that batch. Everything else is drawn from the
 #'   certificate alone, so it cannot disagree with the model.
 #' @return Invisibly, the text (a character vector of lines).
+#' @family reporting
 #' @examples
 #' set.seed(1)
 #' d <- data.frame(x1 = rnorm(1000), x2 = rnorm(1000))
@@ -321,8 +323,8 @@ report <- function(x, file = NULL, format = c("md", "html"), newdata = NULL) {
     "",
     "## Checks",
     "",
-    "| check | status | statistic | 95% CI | threshold | detail |",
-    "|---|---|---|---|---|---|"
+    "| label | check | status | statistic | 95% CI | threshold | detail |",
+    "|---|---|---|---|---|---|---|"
   )
   for (r in ce$results) {
     ci <- r$ci
@@ -332,7 +334,8 @@ report <- function(x, file = NULL, format = c("md", "html"), newdata = NULL) {
       sprintf("[%s, %s]", fmt_num(ci[1]), fmt_num(ci[2]))
     }
     lines <- c(lines, sprintf(
-      "| %s | %s | %s | %s | %s | %s |", r$id,
+      "| %s | `%s` | %s | %s | %s | %s | %s |",
+      r$label %||% r$id, r$id,
       switch(r$status,
         fail = "**FAIL**",
         weak = "_weak_",
