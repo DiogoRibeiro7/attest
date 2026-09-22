@@ -53,7 +53,7 @@ certificate(m)
 #> 
 #> ── Certificate b897d5d357d5 ──
 #> 
-#> issued 2026-09-22 21:39:21 UTC | status valid | on_fail "refuse"
+#> issued 2026-09-22 21:59:23 UTC | status valid | on_fail "refuse"
 #> task classification | engine glm | split split_random | n = 640/160/200
 #> (train/calib/test)
 #> ✔ Duplicate row leakage        pass        0.00% of test rows duplicate a training row (0 of 200)

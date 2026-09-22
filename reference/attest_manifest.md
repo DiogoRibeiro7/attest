@@ -43,7 +43,7 @@ m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
 str(attest_manifest(m))
 #> List of 18
 #>  $ certificate_id: chr "b897d5d357d5"
-#>  $ issued        : chr "2026-09-22 21:39:20"
+#>  $ issued        : chr "2026-09-22 21:59:21"
 #>  $ status        : chr "valid"
 #>  $ hash_data     : chr "2146f198f0f75f663b4e8087b3332de67b86a3f690f37d35f6238698f7dad6ae"
 #>  $ hash_spec     : chr "e6bac019dc632915e713be1f6c241378d4431bfeb601f8d850be80dcfa9fb134"

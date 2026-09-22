@@ -72,7 +72,7 @@ certificate(m)
 #> 
 #> ── Certificate ca4e2a61f60d ──
 #> 
-#> issued 2026-09-22 21:39:19 UTC | status valid | on_fail "refuse"
+#> issued 2026-09-22 21:59:20 UTC | status valid | on_fail "refuse"
 #> task classification | engine glm | split split_random | n = 1280/320/400
 #> (train/calib/test)
 #> ✔ Duplicate row leakage        pass        0.00% of test rows duplicate a training row (0 of 400)

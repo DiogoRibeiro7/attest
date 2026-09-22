@@ -3,7 +3,7 @@ pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
   attest: attest.html
-last_built: 2026-09-22T21:39Z
+last_built: 2026-09-22T21:58Z
 urls:
   reference: https://diogoribeiro7.github.io/attest/reference
   article: https://diogoribeiro7.github.io/attest/articles

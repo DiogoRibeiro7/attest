@@ -85,7 +85,7 @@ m <- attest_fit(spec, y ~ x1 + x2 + x3, d, engine_glm())
 #> ✔ Calibration error            pass        ECE = 0.036 [0.029, 0.075] (max 0.100)
 #> ✔ Conformal coverage           pass        empirical coverage 0.894 [0.874, 0.917] (target 0.900)
 #> i Population stability shift   info        baseline stored
-#> ℹ Certificate 530ca4af7635 issued 2026-09-22 21:39:32 UTC (valid)
+#> ℹ Certificate 530ca4af7635 issued 2026-09-22 21:59:33 UTC (valid)
 ```
 
 The checks report as they run, and a certificate is issued. It is worth
@@ -98,7 +98,7 @@ certificate(m)
 #> 
 #> ── Certificate 530ca4af7635 ──
 #> 
-#> issued 2026-09-22 21:39:32 UTC | status valid | on_fail "refuse"
+#> issued 2026-09-22 21:59:33 UTC | status valid | on_fail "refuse"
 #> task classification | engine glm | split split_random | n = 2560/640/800
 #> (train/calib/test)
 #> ✔ Duplicate row leakage        pass        0.00% of test rows duplicate a training row (0 of 800)
@@ -398,7 +398,9 @@ mw <- attest_fit(borderline, y ~ x1 + x2 + x3, d, engine_glm())
 #> ? Calibration error            weak        ECE = 0.045 [0.033, 0.085] (max 0.052)
 #> i Population stability shift   info        baseline stored
 #> ! inconclusive: calib_ece -- interval straddles the threshold; treated as a pass (see `strict`)
-#> ℹ Certificate a992b1d0f204 issued 2026-09-22 21:39:36 UTC (valid)
+#> Warning: no conformal check in the specification: predictions will have no
+#> interval and will be refused
+#> ℹ Certificate a992b1d0f204 issued 2026-09-22 21:59:38 UTC (valid)
 ```
 
 This cuts against fail-closed defaults in one specific way, worth
@@ -554,7 +556,7 @@ the model it describes:
 cat(report(m)[1:12], sep = "\n")
 #> # Model card: y (classification)
 #> 
-#> Certificate `530ca4af7635`, issued 2026-09-22 21:39:32 UTC, status **valid** (on_fail = `refuse`), attest 0.1.0.
+#> Certificate `530ca4af7635`, issued 2026-09-22 21:59:33 UTC, status **valid** (on_fail = `refuse`), attest 0.1.0.
 #> 
 #> - Engine: `glm`
 #> - Split: `split_random` -- train 2560 / calib 640 / test 800
@@ -812,7 +814,7 @@ led <- attest_ledger(file.path(tempdir(), "attest-ledger.ndjson"))
 ledger_append(led, m, note = "nightly build")
 ledger_append(led, mw, note = "reweighted regression")
 led
-#> <attest_ledger> /tmp/RtmpnqkWXt/attest-ledger.ndjson -- 2 entries
+#> <attest_ledger> /tmp/Rtmp0GmqrY/attest-ledger.ndjson -- 2 entries
 ```
 
 Each entry carries the previous entry’s digest, so the file is a chain
