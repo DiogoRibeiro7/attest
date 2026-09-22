@@ -1,0 +1,355 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1.1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{natbib}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=black, citecolor=black, urlcolor=blue}
+\usepackage{orcidlink}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+
+\title{Fail-closed prediction: refusal as the boundary of a\\
+distribution-free guarantee}
+
+\author{%
+  Diogo Ribeiro\,\orcidlink{0009-0001-2022-7072}\\[2pt]
+  \small Faculty of Media Arts and Design, Technical University of Porto,
+  Portugal
+}
+
+\date{Draft --- 22 September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A predictive model in general-purpose statistical software answers every
+question put to it, including questions it has no evidence about. We argue
+that the scalar prediction is the wrong return type, and that a prediction
+should carry a value, a guarantee and a validity status, with refusal as an
+admissible outcome. The argument is not a matter of engineering taste. Under
+covariate shift, the weighted conformal construction of
+\citet{tibshirani2019} assigns a point mass at infinity to the test point
+itself; when that mass exceeds the miscoverage level the prediction set is the
+whole outcome space. Refusal is the finite-sample expression of that event, and
+returning \texttt{NA} with a reason is a more faithful report than returning an
+unbounded interval or, worse, the narrow one that an unweighted quantile would
+have produced. We then observe that the thresholds used to decide whether a
+model is fit to deploy are routinely compared against statistics whose null
+behaviour depends on sample size, class balance or estimation in sample, and
+give four measured instances in which a conventional threshold misfires
+severely: the population stability index flags roughly 80\% of unshifted
+50-row batches; an in-sample classifier two-sample area under the curve reads
+0.53 on identical samples; single-feature leakage screening by accuracy scores
+0.974 on pure noise when the event rate is 2.6\%; and point-estimate
+comparison fails checks on sampling noise alone. Each is repaired by
+calibrating the threshold against a null rather than a convention. The
+\textsf{R} package \texttt{attest} implements the resulting contract and is
+the proof of concept.
+\end{abstract}
+
+\section{Introduction}
+
+Fitting a model and validating it are separate acts, performed by the same
+person minutes apart, and thereafter linked by nothing but memory. The fitted
+object records its coefficients, not the leakage screen that preceded it; the
+notebook records the calibration plot, not which object it described. This is
+not a failure of diligence. It is a consequence of the return type: a model is
+a function to a scalar, and a scalar cannot carry provenance.
+
+The consequence appears at the moment of use. A generalised linear model in
+\textsf{R} will return a fitted probability for a covariate vector ten standard
+deviations outside anything it was trained on, and the number is
+indistinguishable in type, class and printed appearance from one it has ample
+evidence for. Extrapolation does not announce itself as uncertainty; it
+announces itself as confidence, because the fitted surface is smooth and the
+arithmetic is untroubled.
+
+We propose that a prediction should be a triple---a value, a guarantee, and a
+status---and that \emph{refusal} should be an admissible status. Section~2
+states what the certificate attests. Section~3 recalls what split conformal
+prediction guarantees and, more importantly, what it does not. Section~4 gives
+the paper's central observation: under the weighted conformal construction,
+refusal is not an added safeguard but the finite-sample expression of an
+infinite quantile. Section~5 turns to a separate and more mundane failure,
+namely that the thresholds practitioners use are compared against statistics
+whose null behaviour they have not checked, and gives four measured instances.
+Section~6 describes the implementation.
+
+\section{What a certificate attests}
+
+\begin{definition}[Certificate]
+Let $\mathcal{D}$ be a training sample, $\mathcal{S}$ a specification
+consisting of a partition rule and an ordered set of checks, and $\hat f$ the
+fitted model. A \emph{certificate} is the tuple
+\[
+  \mathcal{C} = \bigl(\,h(\mathcal{D}),\; h(\mathcal{S}),\; h(\hat f),\;
+  \{(c_k, s_k, \theta_k, I_k, v_k)\}_{k=1}^{K},\; t\,\bigr),
+\]
+where $h$ is a collision-resistant hash, $c_k$ identifies the $k$th check,
+$s_k$ is its statistic, $\theta_k$ its threshold, $I_k$ an interval estimate
+for $s_k$, $v_k \in \{\textup{pass},\textup{weak},\textup{fail},
+\textup{waived},\textup{untestable},\textup{info}\}$ its verdict, and $t$ the
+time of issue.
+\end{definition}
+
+The content of the definition is in what it excludes. A certificate does not
+assert that $\hat f$ is accurate, that $\mathcal{D}$ was appropriate, or that
+the checks were the right ones. It asserts that these checks, with these
+thresholds, were run on data with this hash and produced these verdicts, and
+it binds that assertion to $\hat f$ so that the two cannot be separated without
+detection.
+
+\begin{remark}
+$h(\mathcal{S})$ must be computed from a structural summary of the
+specification rather than from its serialisation. Checks are closures, and in
+\textsf{R} a closure's serialised representation changes once the just-in-time
+compiler attaches byte code to it, so a specification hashed before and after
+use yields different digests. This is a small point with a large consequence:
+an identifier that varies across runs of the same pipeline cannot support an
+audit trail.
+\end{remark}
+
+\section{What split conformal prediction guarantees}
+
+Let $(X_i, Y_i)_{i=1}^{n+1}$ be exchangeable, let $\hat\mu$ be fitted on data
+independent of the calibration sample, and let $V_i = \mathcal{A}(X_i, Y_i)$ be
+nonconformity scores, for instance $|Y_i - \hat\mu(X_i)|$ in regression or
+$1 - \hat p_{Y_i}(X_i)$ in classification. With
+$q = V_{(\lceil (n+1)(1-\alpha)\rceil)}$ the corresponding order statistic, the
+set $\hat C(x) = \{y : \mathcal{A}(x,y) \le q\}$ satisfies
+\begin{equation}
+  1 - \alpha \;\le\; \mathbb{P}\bigl(Y_{n+1} \in \hat C(X_{n+1})\bigr)
+  \;\le\; 1 - \alpha + \tfrac{1}{n+1},
+  \label{eq:split}
+\end{equation}
+the upper bound holding when the scores are almost surely distinct
+\citep{vovk2005,lei2018}.
+
+Four properties of \eqref{eq:split} are routinely over-read.
+
+\paragraph{The probability is marginal.} It is taken over the joint law of the
+calibration sample and the test point. It is not a statement about any
+particular $x$, and coverage may be far below $1-\alpha$ on an identifiable
+subpopulation while holding overall.
+
+\paragraph{Coverage is achieved by construction.} Equation~\eqref{eq:split}
+holds for \emph{any} $\hat\mu$, including a constant. It is therefore not a
+diagnostic: a model that has been handed a feature which restates the outcome
+attains the same coverage as an honest one. In a worked example, a leaking
+model is better calibrated by a factor of thirty and produces singleton label
+sets where the honest model returns the uninformative full set, while the two
+are indistinguishable on coverage. Sharpness, not coverage, is the quantity
+that separates them, and only the pair is informative.
+
+\paragraph{The guarantee is finite-sample and random.} Empirical coverage on a
+single test set scatters around $1-\alpha$ with standard error of order
+$n_{\text{test}}^{-1/2}$. A measured shortfall is therefore not evidence of
+failure, which is the motivation for interval-based verdicts in Section~5.
+
+\paragraph{Exchangeability is the whole assumption.} If the calibration and
+test samples are not exchangeable, \eqref{eq:split} does not degrade
+gracefully; it is void. Nothing in the construction signals this, which is the
+subject of the next section.
+
+\section{Refusal is an infinite quantile}
+
+Suppose covariate shift: training and calibration data are drawn from
+$P = P_X \times P_{Y|X}$ and test data from $Q = Q_X \times P_{Y|X}$, with
+$Q_X \ll P_X$ and likelihood ratio $w = \mathrm{d}Q_X/\mathrm{d}P_X$.
+\citet{tibshirani2019} show that exchangeability can be restored by weighting.
+Define, for a test point $x$,
+\begin{equation}
+  p_i^w(x) = \frac{w(X_i)}{\sum_{j=1}^{n} w(X_j) + w(x)},
+  \qquad
+  p_\infty^w(x) = \frac{w(x)}{\sum_{j=1}^{n} w(X_j) + w(x)},
+  \label{eq:weights}
+\end{equation}
+and let $\hat C(x) = \{ y : \mathcal{A}(x,y) \le Q_{1-\alpha}(x)\}$ where
+$Q_{1-\alpha}(x)$ is the $(1-\alpha)$ quantile of the weighted measure
+$\sum_i p_i^w(x)\,\delta_{V_i} + p_\infty^w(x)\,\delta_{+\infty}$. Then
+$\mathbb{P}_{Q}(Y \in \hat C(X)) \ge 1-\alpha$.
+
+The atom at $+\infty$ is not a technical convenience. It is the construction
+declining to extrapolate, and it becomes decisive exactly when the test point
+is unlike the calibration sample.
+
+\begin{proposition}[Refusal condition]
+\label{prop:refusal}
+With the weights \eqref{eq:weights}, $Q_{1-\alpha}(x) = +\infty$---and hence
+$\hat C(x)$ is the whole outcome space---if and only if
+\begin{equation}
+  p_\infty^w(x) > \alpha,
+  \qquad\text{equivalently}\qquad
+  w(x) > \frac{1-\alpha}{\alpha}\,\sum_{j=1}^{n} w(X_j).
+  \label{eq:refusal}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+The finite atoms carry total mass $1 - p_\infty^w(x)$. The $(1-\alpha)$
+quantile is finite precisely when the finite part of the measure attains mass
+$1-\alpha$, that is when $1 - p_\infty^w(x) \ge 1-\alpha$. Its negation is
+$p_\infty^w(x) > \alpha$; substituting \eqref{eq:weights} and rearranging gives
+the stated bound on $w(x)$.
+\end{proof}
+
+Proposition~\ref{prop:refusal} is elementary, and that is the point. It says
+that the guarantee itself specifies when it has nothing to offer, and the
+condition is a comparison between the test point's own weight and the total
+weight of the calibration sample. A software system has three options when
+\eqref{eq:refusal} holds: return the trivial set, return a narrower set with no
+justification, or refuse. The second is what an unweighted implementation does
+silently, and it is the only one of the three that is wrong. The first and
+third are the same claim, differing in whether the caller is told.
+
+We therefore take refusal to be the correct return, with the qualification that
+it must be accompanied by a reason, and that overriding it must be recorded.
+The practical support condition used in implementation---refusing rows with a
+feature outside the training range, or an unseen categorical level---is a
+computable sufficient condition for $w(x)$ to be large, and is applied
+in addition to \eqref{eq:refusal} rather than instead of it.
+
+\begin{remark}[What weighting does not buy]
+The guarantee assumes $w$ is known. In practice it is estimated, typically by
+a discriminative classifier, so coverage is approximate and degrades as the
+estimate does. More importantly the construction addresses covariate shift
+only: if $P_{Y|X}$ has itself changed, reweighting is not merely ineffective
+but actively misleading, because the returned intervals carry the appearance
+of having been adjusted. Under strong shift the weighted calibration sample
+has small effective size and the quantile is driven by few observations, which
+in our experiments produces conservative over-coverage well before the method
+fails outright.
+\end{remark}
+
+\section{Thresholds without nulls}
+
+The second half of our argument concerns a failure that requires no theory at
+all. Decisions about whether a model may be deployed are made by comparing a
+statistic to a threshold. The thresholds in circulation are conventions, and
+conventions are calibrated---if at all---against a null the practitioner has
+not checked in their own setting. We give four instances, each measured, each
+repaired by supplying the missing null.
+
+\paragraph{A statistic whose noise floor depends on sample size.} The
+population stability index is conventionally flagged above $0.2$. With ten
+bins and a batch of 50 rows drawn from the training distribution \emph{itself},
+its median is approximately $0.2$. The threshold therefore flags roughly 80\%
+of unshifted batches at the smallest batch size the software permits. Comparing
+instead against a null simulated at the observed batch size, by resampling from
+the stored training frequencies, reduces this to 6\% while leaving detection of
+a genuine shift unchanged (Table~\ref{tab:nulls}).
+
+\paragraph{A statistic optimistic in sample.} A classifier two-sample test
+\citep{lopezpaz2017} detects changes in dependence structure that per-feature
+statistics cannot see. Its area under the curve, computed in sample, reads
+approximately $0.53$ on two samples drawn from the same distribution, because a
+flexible classifier can separate identical samples it is allowed to both fit
+and score. Cross-fitting returns $0.485$, and because the scores are then
+independent of the labels under the null, the $p$-value follows the
+Mann--Whitney approximation without a permutation loop.
+
+\paragraph{A statistic that inherits the class balance.} Screening each feature
+for its ability to reproduce the outcome is conventionally done by accuracy. A
+majority-class rule already attains the base rate, so on a rare outcome every
+feature scores near the threshold. On a portfolio of 67,856 motor policies with
+a 6.8\% claim rate, all seven rating factors scored $0.9318$ against a no-claim
+rate of $0.9319$. At a 2.6\% event rate a pure-noise feature clears a $0.95$
+threshold and the screen refuses every model. Scoring by area under the curve,
+or mean per-class recall for multiclass outcomes, removes the dependence.
+
+\paragraph{A point estimate treated as exact.} Comparing $\hat s$ to $\theta$
+ignores that $\hat s$ is estimated. We attach a bootstrap interval $I$ and
+return \textup{fail} only when $I$ lies wholly beyond $\theta$,
+\textup{pass} when it lies wholly within, and \textup{weak} otherwise. The
+third verdict is the substantive one: it records that the evidence did not
+settle the question, rather than resolving it by the accident of which side of
+$\theta$ the point estimate fell.
+
+\begin{table}[ht]
+\centering
+\caption{Measured effect of supplying a null. Each row reports the rate at
+which a conventional threshold fires when it should not.}
+\label{tab:nulls}
+\begin{tabular}{llrr}
+\toprule
+Statistic & Condition & Convention & With null \\
+\midrule
+PSI            & unshifted, 50 rows        & 80\%   & 6\%   \\
+PSI            & unshifted, 60 rows        & 69\%   & 6\%   \\
+C2ST AUC       & identical samples         & 0.53   & 0.485 \\
+Proxy accuracy & pure noise, 2.6\% events  & 0.974  & 0.53  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The four instances share a structure. In each, a threshold that is meaningful
+as an effect size is applied to an estimator whose null value is not where the
+threshold assumes. The repair is the same in each: establish the null
+behaviour in the setting at hand, and require the statistic to clear both the
+null and the effect size before acting. We suggest this pairing as the default
+discipline for automated model checks, and note that it is orthogonal to which
+statistics are chosen.
+
+\begin{remark}[A limit that none of this addresses]
+None of the shift statistics inspects the outcome. They report that the input
+distribution has moved, which is not the same as the model having become
+worse: a large shift in a feature the model ignores is harmless, and a small
+shift in a decisive one may not be. Detecting degradation requires labels,
+which in deployment usually have not arrived. We regard this as the principal
+open problem for the framework.
+\end{remark}
+
+\section{Implementation}
+
+The contract is implemented in the \textsf{R} package \texttt{attest}. Checks
+execute inside the fitting function, so no code path produces a model without
+them; a blocking failure refuses to issue a certificate; a model whose
+certificate is not valid cannot predict; and waiving a check requires a written
+reason that is stored in the certificate and reproduced in every report
+thereafter. Predictions return a value, an interval or label set, a status in
+$\{\textup{valid}, \textup{flagged}, \textup{refused}\}$, and a reason.
+
+Two details are worth recording. Reports are rendered from the certificate
+rather than recomputed, including the diagnostic figures, so a model card
+cannot disagree with the model it describes. And certificates may be appended
+to a hash-chained ledger: each entry carries the digest of its predecessor, so
+that editing or removing a record is detectable. We note explicitly that a
+plain digest chain is tamper-evident against accident and single edits but not
+against an adversary who rewrites the chain, since the digest is recomputable;
+sealing entries with a keyed hash closes that gap and moves the guarantee onto
+the key.
+
+\section{Discussion}
+
+The argument of this paper is that the scalar return type is the root of a
+class of deployment failures, and that the repair is typed rather than
+procedural. Adding a validation step to a pipeline is a discipline that decays;
+changing what a prediction \emph{is} does not. Proposition~\ref{prop:refusal}
+suggests that this is not merely a software convention: under the weighted
+conformal construction the guarantee already contains a refusal outcome, and
+implementations that return a number regardless are discarding information the
+mathematics supplies.
+
+We close with the observation that motivated Section~5. Every defect we found
+in the implementation was found by attempting to write down a claim about
+it---in documentation, in a submission note, or in this paper---and then
+checking the claim. None was found by writing more code. If that generalises,
+it is an argument for the position advanced here: the obligation to state what
+was checked is itself a mechanism for discovering that it was not.
+
+\section*{Acknowledgements}
+
+Software available at \url{https://github.com/DiogoRibeiro7/attest}.
+
+\bibliographystyle{plainnat}
+\bibliography{paper}
+
+\end{document}
