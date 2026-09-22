@@ -22,6 +22,15 @@ confidence interval. Duplication is a census of the rows you actually hold,
 not an estimate of a population quantity: if a training row appears in the
 test set, it is there, and resampling would only describe a hypothetical
 other dataset. The same reasoning applies to \code{\link[=leak_temporal]{leak_temporal()}}.
+
+The default tolerates nothing, which is right when a duplicate row means the
+same record reached both partitions. Be aware that on real data with
+low-cardinality features some duplication is arithmetic rather than
+leakage: two distinct subjects can share every recorded value. A motor
+portfolio of 68,000 policies described by seven mixed rating factors
+produces around 0.9\% duplication with no leak present. The check reports the
+count as well as the proportion so that \code{max_prop} can be set from the data
+rather than guessed.
 }
 \examples{
 leak_duplicates()

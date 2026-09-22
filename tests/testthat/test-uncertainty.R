@@ -146,3 +146,72 @@ test_that("shift_monitor n_boot = 0 keeps the fixed threshold", {
   s$x1 <- s$x1 + 1
   expect_true(any(predict(m, s)$.status == "flagged"))
 })
+
+test_that("the proxy statistic does not track the base rate", {
+  # Accuracy would: a majority-class rule scores the base rate, so on a rare
+  # outcome every feature, noise included, looks like a near-perfect proxy.
+  # This was observed on real motor insurance data before the statistic
+  # changed to AUC.
+  set.seed(3)
+  score_noise <- function(p1) {
+    n <- 4000
+    d <- data.frame(noise = rnorm(n))
+    d$y <- factor(rbinom(n, 1, p1))
+    m <- suppressWarnings(attest_fit(
+      attest_spec(
+        on_fail = "flag",
+        checks = list(leak_target_proxy(n_boot = 0))
+      ),
+      y ~ noise, d, engine_glm(),
+      quiet = TRUE
+    ))
+    certificate(m)$results$leak_target_proxy$statistic
+  }
+  scores <- vapply(c(0.5, 0.2, 0.05), score_noise, numeric(1))
+  # a useless feature sits near chance whatever the balance
+  expect_true(all(abs(scores - 0.5) < 0.12))
+  # and never trips the threshold, which accuracy did at a 3% event rate
+  expect_true(all(scores < 0.95))
+})
+
+test_that("a perfect proxy still scores one on a rare outcome", {
+  set.seed(4)
+  n <- 4000
+  d <- data.frame(x = rnorm(n))
+  d$y <- factor(rbinom(n, 1, 0.03))
+  d$leak <- as.integer(d$y)
+  m <- suppressWarnings(attest_fit(
+    attest_spec(on_fail = "flag", checks = list(leak_target_proxy(n_boot = 0))),
+    y ~ x + leak, d, engine_glm(),
+    quiet = TRUE
+  ))
+  sc <- certificate(m)$results$leak_target_proxy$evidence$scores
+  expect_equal(unname(sc[["leak"]]), 1)
+  expect_lt(sc[["x"]], 0.7)
+  expect_equal(certificate(m)$results$leak_target_proxy$status, "fail")
+})
+
+test_that("the multiclass proxy statistic is also balance-free", {
+  skip_if_not_installed("ranger")
+  set.seed(5)
+  n <- 3000
+  d <- data.frame(noise = rnorm(n))
+  # heavily skewed three-class outcome
+  d$y <- factor(sample(c("a", "b", "c"), n, TRUE, prob = c(0.9, 0.07, 0.03)))
+  m <- attest_fit(
+    attest_spec(on_fail = "flag", checks = list(leak_target_proxy(n_boot = 0))),
+    y ~ noise, d, engine_ranger(num.trees = 50),
+    quiet = TRUE
+  )
+  s <- certificate(m)$results$leak_target_proxy$statistic
+  # mean per-class recall for a useless feature sits near 1/3, not near 0.9
+  expect_lt(s, 0.6)
+})
+
+test_that("leak_duplicates reports the count as well as the proportion", {
+  d <- make_data(1200)
+  m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
+  msg <- certificate(m)$results$leak_duplicates$message
+  expect_true(grepl("of ", msg, fixed = TRUE))
+  expect_true(grepl(")", msg, fixed = TRUE))
+})

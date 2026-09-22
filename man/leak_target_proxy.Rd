@@ -7,7 +7,8 @@
 leak_target_proxy(threshold = 0.95, n_boot = 500)
 }
 \arguments{
-\item{threshold}{Maximum tolerated single-feature accuracy / R-squared.}
+\item{threshold}{Maximum tolerated single-feature score: AUC for a binary
+outcome, mean per-class recall for multiclass, R-squared for regression.}
 
 \item{n_boot}{Bootstrap replicates for the confidence interval on the
 strongest feature's score; \code{0} disables it and the point estimate
@@ -17,11 +18,19 @@ decides.}
 An \code{attest_check}.
 }
 \description{
-For each feature, a one-variable model is fitted on the training set. For
-classification the statistic is accuracy; for regression it is R-squared.
-Any feature above \code{threshold} fails the check.
+For each feature, a one-variable model is fitted on the training set. The
+statistic is the area under the curve for a binary outcome, mean per-class
+recall for multiclass, and R-squared for regression. Any feature above
+\code{threshold} fails the check.
 }
 \details{
+The statistic is deliberately not accuracy. A majority-class rule already
+achieves the base rate, so on a rare outcome -- a 3\% claim rate, say --
+accuracy makes every feature look like a near-perfect proxy and the check
+refuses every model. All three statistics used here sit at chance for a
+feature with no predictive power, however skewed the outcome, and at one for
+a feature that reproduces it.
+
 The reported statistic is the maximum score across features. It is given a
 bootstrap confidence interval over training rows, so a feature that merely
 looks strong in a small sample no longer fails the check outright: the
