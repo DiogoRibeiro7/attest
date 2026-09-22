@@ -1,0 +1,25 @@
+citHeader("To cite attest in publications, please cite the software.")
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "{attest}: Fail-Closed Machine Learning with Model Certificates",
+  author   = person(
+    given   = "Diogo",
+    family  = "Ribeiro",
+    email   = "dfr@esmad.ipp.pt",
+    comment = c(ORCID = "0009-0001-2022-7072")
+  ),
+  year     = "2026",
+  note     = "R package version 0.1.0",
+  url      = "https://github.com/DiogoRibeiro7/attest",
+  textVersion = paste(
+    "Diogo Ribeiro (2026).",
+    "attest: Fail-Closed Machine Learning with Model Certificates.",
+    "R package version 0.1.0.",
+    "https://github.com/DiogoRibeiro7/attest"
+  )
+)
+
+# When the archived release has a DOI, add a second bibentry here for it and
+# leave the entry above in place: readers cite the software, archivists cite
+# the snapshot, and the two should not be the same record.

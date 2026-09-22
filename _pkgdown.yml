@@ -1,0 +1,86 @@
+url: https://diogoribeiro7.github.io/attest/
+template:
+  bootstrap: 5
+home:
+  title: Fail-closed machine learning with model certificates
+  description: |
+    Models that carry their own proof of validity. Leakage, calibration, conformal coverage and shift checks run at fit time and are stored inside the model object, bound to the data by hash. Predictions come with an interval and a status, and are refused when the input falls outside the certified support.
+reference:
+- title: Fitting and certifying
+  desc: |
+    The entry point. A specification says what to check and what a failure means; fitting runs the checks and issues the certificate.
+  contents:
+  - attest_spec
+  - attest_fit
+  - splits
+- title: Inspecting a certificate
+  desc: |
+    What the model attests, whether it is intact, and the model card rendered from it.
+  contents:
+  - certificate
+  - report
+- title: Predicting
+  desc: |
+    Predictions carry a value, an interval or label set, a validity status and a reason.
+  contents: predict.attested_model
+- title: Leakage checks
+  contents:
+  - leak_duplicates
+  - leak_target_proxy
+  - leak_temporal
+- title: Calibration and coverage
+  desc: |
+    Expected calibration error and split conformal coverage, the latter optionally reweighted for covariate shift.
+  contents:
+  - calib_ece
+  - conformal_split
+  - attest_weighted_quantile
+  - attest_density_ratio
+- title: Shift detection
+  desc: |
+    A population stability monitor calibrated against a simulated null, and a classifier two-sample test that sees changes in dependence structure a per-feature statistic cannot.
+  contents:
+  - shift_monitor
+  - shift_c2st
+  - attest_c2st
+- title: Writing your own check
+  desc: |
+    Checks are the extension point. The helpers are exported so a custom check can use the same interval machinery as the built-in ones.
+  contents:
+  - new_check
+  - attest_result
+  - attest_boot
+  - attest_verdict
+  - imbalance_report
+- title: Engines
+  desc: |
+    Thin adapters around modelling functions. `engine_parsnip()` reaches the whole parsnip ecosystem without an adapter for each back end.
+  contents:
+  - engines
+  - engine_parsnip
+  - engine_fit
+  - engine_predict
+- title: Audit trail
+  desc: |
+    An append-only, hash-chained record of every certificate a project issues.
+  contents:
+  - attest_ledger
+  - attest_manifest
+  - ledger_append
+  - ledger_entries
+  - ledger_find
+  - ledger_verify
+articles:
+- title: Getting started
+  navbar: ~
+  contents: attest
+navbar:
+  structure:
+    left:
+    - intro
+    - reference
+    - articles
+    right:
+    - search
+    - github
+
