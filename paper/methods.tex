@@ -341,7 +341,8 @@ $\theta$ the point estimate fell.
 \begin{table}[ht]
 \centering
 \caption{Measured effect of supplying a null. Each row reports the rate at
-which a conventional threshold fires when it should not.}
+which a conventional threshold fires when it should not. Simulated features
+are Gaussian; see Table~\ref{tab:real} for real portfolios.}
 \label{tab:nulls}
 \begin{tabular}{llrr}
 \toprule
@@ -351,6 +352,48 @@ PSI            & unshifted, 50 rows        & 80\%   & 6\%   \\
 PSI            & unshifted, 60 rows        & 69\%   & 6\%   \\
 C2ST AUC       & identical samples         & 0.53   & 0.485 \\
 Proxy accuracy & pure noise, 2.6\% events  & 0.974  & 0.53  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The same thresholds on real portfolios}
+
+Simulated covariates are a weak test of a binned statistic, because real
+rating factors are skewed, discrete and often categorical. We repeated both
+measurements on four insurance portfolios of very different size and class
+balance, drawing batches from each portfolio itself so that every flag is
+false by construction (Table~\ref{tab:real}).
+
+Both effects are larger on real data than in simulation. The conventional PSI
+threshold fires on between 52\% and 92\% of unshifted 50-row batches, against
+80\% for Gaussian covariates, and the simulated null brings every portfolio to
+between 4\% and 8\%. At 200 rows the distinction has all but disappeared,
+which is consistent with the noise floor being a small-sample effect rather
+than a property of the data.
+
+The accuracy result generalises exactly. A pure-noise feature scores the base
+rate to three decimal places on all four portfolios, across base rates from
+0.53 to 0.99, while the area under the curve stays at chance. On
+\texttt{dataOhlsson}, a portfolio of 64,548 policies with a 1\% claim rate,
+accuracy scores 0.990 on noise and so clears a 0.95 threshold: a second real
+dataset on which the conventional screen would have refused every model.
+
+\begin{table}[ht]
+\centering
+\caption{Four insurance portfolios. Left: score given to an added pure-noise
+feature. Right: share of unshifted 50-row batches flagged, four features per
+portfolio.}
+\label{tab:real}
+\begin{tabular}{lrrrrrr}
+\toprule
+& & \multicolumn{3}{c}{Noise feature} & \multicolumn{2}{c}{PSI, 50 rows} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-7}
+Portfolio & $n$ & base rate & accuracy & AUC & fixed 0.2 & null \\
+\midrule
+\texttt{dataCar}       & 67{,}856 & 0.932 & 0.932 & 0.506 & 92\% & 4\% \\
+\texttt{AutoBi}        &  1{,}144 & 0.527 & 0.527 & 0.504 & 52\% & 4\% \\
+\texttt{SingaporeAuto} &  7{,}483 & 0.935 & 0.935 & 0.515 & 52\% & 8\% \\
+\texttt{dataOhlsson}   & 64{,}548 & 0.990 & 0.990 & 0.512 & 82\% & 4\% \\
 \bottomrule
 \end{tabular}
 \end{table}
