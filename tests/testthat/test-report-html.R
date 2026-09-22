@@ -89,6 +89,7 @@ test_that("the card carries the certificate facts", {
 
 test_that("the charts are well-formed SVG inside the viewBox", {
   fx <- card_model(1500)
+  skip_if_not_installed("xml2")
   blocks <- svg_blocks(report(fx$model, format = "html"))
   expect_gte(length(blocks), 2)
   nums <- function(s) {
