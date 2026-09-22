@@ -20,8 +20,8 @@
   batches -- with ten bins, 50 rows drawn from the training distribution
   itself have a median PSI near 0.2 -- so the old default flagged roughly half
   of all healthy small batches. Measured false-positive rate on unshifted
-  60-row batches falls from 78% to 5%, with detection of a genuine 0.5 SD
-  shift unchanged at 88-100%. The per-feature quantile is Bonferroni-adjusted
+  50-row batches, the default minimum, falls from roughly 80% to 6%, with
+  detection of a genuine 0.5 SD shift unchanged at 88-100%. The per-feature quantile is Bonferroni-adjusted
   so the stated rate applies to the batch. Sampling from the baseline
   multinomial is independent of batch size, which also cuts the cost of
   predicting on 50,000 rows from 3.5 s to 0.25 s.
