@@ -22,5 +22,6 @@ Suggests: ranger, parsnip, glmnet, xgboost, xml2, testthat (>= 3.0.0),
     knitr, rmarkdown
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://github.com/DiogoRibeiro7/attest
+URL: https://github.com/DiogoRibeiro7/attest,
+    https://diogoribeiro7.github.io/attest/
 BugReports: https://github.com/DiogoRibeiro7/attest/issues
