@@ -73,17 +73,79 @@ announces itself as confidence, because the fitted surface is smooth and the
 arithmetic is untroubled.
 
 We propose that a prediction should be a triple---a value, a guarantee, and a
-status---and that \emph{refusal} should be an admissible status. Section~2
-states what the certificate attests. Section~3 recalls what split conformal
-prediction guarantees and, more importantly, what it does not. Section~4 gives
+status---and that \emph{refusal} should be an admissible status.
+Section~\ref{sec:certificate} states what the certificate attests.
+Section~\ref{sec:conformal} recalls what split conformal prediction
+guarantees and, more importantly, what it does not.
+Section~\ref{sec:refusal-sec} gives
 the paper's central observation: under the weighted conformal construction,
 refusal is not an added safeguard but the finite-sample expression of an
-infinite quantile. Section~5 turns to a separate and more mundane failure,
+infinite quantile. Section~\ref{sec:thresholds} turns to a separate and more
+mundane failure,
 namely that the thresholds practitioners use are compared against statistics
 whose null behaviour they have not checked, and gives four measured instances.
-Section~6 describes the implementation.
+Section~\ref{sec:impl} describes the implementation.
+
+\section{Related work}
+
+\paragraph{Selective prediction.} Allowing a classifier to abstain is an old
+idea, introduced by \citet{chow1970} as the reject option and developed into
+selective classification by \citet{elyaniv2010} and, for modern networks, by
+\citet{geifman2017}. The resemblance to what we propose is close enough that
+the difference must be stated precisely, because it is the difference that
+carries the argument.
+
+Selective prediction abstains on \emph{confidence}: a score derived from the
+model, thresholded to trade coverage against selective risk. The rejected
+region is chosen to optimise that trade-off, and the threshold is a free
+parameter fixed by the practitioner's tolerance for error.
+
+We abstain on \emph{validity}. The criterion is not that the model is unsure
+but that the guarantee does not apply---Proposition~\ref{prop:refusal} makes
+the condition explicit, and it involves the calibration sample and the test
+point's density ratio, not the model's output at all. A confident model and an
+unconfident one are refused alike if the weighted calibration mass will not
+reach $1-\alpha$. There is no free parameter beyond $\alpha$ itself, which is
+already the miscoverage level.
+
+The two criteria are complementary rather than competing. A practitioner may
+wish to abstain on low confidence \emph{as well}; our claim is only that
+abstaining where the guarantee is void is not a tuning decision.
+
+\paragraph{Documentation artefacts.} Model cards \citep{mitchell2019} and
+datasheets \citep{gebru2021} established that a model or dataset should ship
+with a structured account of its provenance and intended use. We take that
+premise and add a mechanism: the account is generated from a certificate bound
+to the artefact by hash, so it cannot be written by hand, cannot be edited
+independently of the model, and cannot silently go stale. The documentation
+literature specifies what should be recorded; the gap we address is that
+nothing enforces the recording or detects its divergence.
+
+\paragraph{Leakage.} \citet{kapoor2023} survey leakage across published
+machine-learning-based science and find it pervasive and reproducible, which
+is the empirical case for screening at fit time rather than on request. Our
+contribution here is not a better leakage detector---the screens we implement
+are deliberately shallow---but the observation in Section~\ref{sec:thresholds} that the
+conventional screening statistic is unusable on rare outcomes, and the
+insistence that a screen which is easy to skip will be skipped.
+
+\paragraph{Shift detection.} \citet{rabanser2019} compare methods for
+detecting dataset shift and recommend dimensionality reduction followed by
+two-sample testing, which is the design we adopt. Our addition is procedural:
+the test statistic must be calibrated against its own null in the setting at
+hand, and Section~\ref{sec:thresholds} measures what happens when it is not.
+
+\paragraph{Conformal prediction under shift.} Beyond the covariate-shift
+weighting of \citet{tibshirani2019}, \citet{gibbs2021} give an online scheme
+that adapts the miscoverage level from observed coverage, which addresses
+arbitrary shift but requires outcomes to arrive. That requirement is exactly
+the limitation we record at the end of Section~\ref{sec:thresholds}: where labels
+are available,
+adaptive methods are preferable to refusal; where they are not, the density
+ratio is the only handle, and it reaches covariate shift alone.
 
 \section{What a certificate attests}
+\label{sec:certificate}
 
 \begin{definition}[Certificate]
 Let $\mathcal{D}$ be a training sample, $\mathcal{S}$ a specification
@@ -118,6 +180,7 @@ audit trail.
 \end{remark}
 
 \section{What split conformal prediction guarantees}
+\label{sec:conformal}
 
 Let $(X_i, Y_i)_{i=1}^{n+1}$ be exchangeable, let $\hat\mu$ be fitted on data
 independent of the calibration sample, and let $V_i = \mathcal{A}(X_i, Y_i)$ be
@@ -152,7 +215,7 @@ that separates them, and only the pair is informative.
 \paragraph{The guarantee is finite-sample and random.} Empirical coverage on a
 single test set scatters around $1-\alpha$ with standard error of order
 $n_{\text{test}}^{-1/2}$. A measured shortfall is therefore not evidence of
-failure, which is the motivation for interval-based verdicts in Section~5.
+failure, which is the motivation for interval-based verdicts in Section~\ref{sec:thresholds}.
 
 \paragraph{Exchangeability is the whole assumption.} If the calibration and
 test samples are not exchangeable, \eqref{eq:split} does not degrade
@@ -160,6 +223,7 @@ gracefully; it is void. Nothing in the construction signals this, which is the
 subject of the next section.
 
 \section{Refusal is an infinite quantile}
+\label{sec:refusal-sec}
 
 Suppose covariate shift: training and calibration data are drawn from
 $P = P_X \times P_{Y|X}$ and test data from $Q = Q_X \times P_{Y|X}$, with
@@ -230,6 +294,7 @@ fails outright.
 \end{remark}
 
 \section{Thresholds without nulls}
+\label{sec:thresholds}
 
 The second half of our argument concerns a failure that requires no theory at
 all. Decisions about whether a model may be deployed are made by comparing a
@@ -308,6 +373,7 @@ open problem for the framework.
 \end{remark}
 
 \section{Implementation}
+\label{sec:impl}
 
 The contract is implemented in the \textsf{R} package \texttt{attest}. Checks
 execute inside the fitting function, so no code path produces a model without
@@ -338,7 +404,7 @@ conformal construction the guarantee already contains a refusal outcome, and
 implementations that return a number regardless are discarding information the
 mathematics supplies.
 
-We close with the observation that motivated Section~5. Every defect we found
+We close with the observation that motivated Section~\ref{sec:thresholds}. Every defect we found
 in the implementation was found by attempting to write down a claim about
 it---in documentation, in a submission note, or in this paper---and then
 checking the claim. None was found by writing more code. If that generalises,
@@ -350,6 +416,6 @@ was checked is itself a mechanism for discovering that it was not.
 Software available at \url{https://github.com/DiogoRibeiro7/attest}.
 
 \bibliographystyle{plainnat}
-\bibliography{paper}
+\bibliography{paper,methods}
 
 \end{document}
