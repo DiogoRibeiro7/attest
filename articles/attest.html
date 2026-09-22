@@ -135,7 +135,7 @@ the returned object.</p></li>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Calibration error            pass        ECE = 0.036 [0.029, 0.075] (max 0.100)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Conformal coverage           pass        empirical coverage 0.894 [0.874, 0.917] (target 0.900)</span></span>
 <span><span class="co">#&gt; <span style="color: #0000BB;">i</span> Population stability shift   info        baseline stored</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Certificate 530ca4af7635 issued 2026-09-22 21:59:33 UTC (valid)</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Certificate 530ca4af7635 issued 2026-09-22 22:06:56 UTC (valid)</span></span></code></pre></div>
 <p>The checks report as they run, and a certificate is issued. It is
 worth noticing that <code>x3</code> is pure noise: attest makes no claim
 that the model is <em>good</em>, only that the stated checks were run
@@ -145,7 +145,7 @@ and passed.</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Certificate 530ca4af7635</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; issued 2026-09-22 21:59:33 UTC | status <span style="font-weight: bold;">valid</span> | on_fail <span style="color: #0000BB;">"refuse"</span></span></span>
+<span><span class="co">#&gt; issued 2026-09-22 22:06:56 UTC | status <span style="font-weight: bold;">valid</span> | on_fail <span style="color: #0000BB;">"refuse"</span></span></span>
 <span><span class="co">#&gt; task classification | engine glm | split split_random | n = 2560/640/800</span></span>
 <span><span class="co">#&gt; (train/calib/test)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Duplicate row leakage        pass        0.00% of test rows duplicate a training row (0 of 800)</span></span>
@@ -406,7 +406,7 @@ never silently recorded as “fine”:</p>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> inconclusive: calib_ece -- interval straddles the threshold; treated as a pass (see `strict`)</span></span>
 <span><span class="co">#&gt; Warning: no conformal check in the specification: predictions will have no</span></span>
 <span><span class="co">#&gt; interval and will be refused</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Certificate a992b1d0f204 issued 2026-09-22 21:59:38 UTC (valid)</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Certificate a992b1d0f204 issued 2026-09-22 22:07:01 UTC (valid)</span></span></code></pre></div>
 <p>This cuts against fail-closed defaults in one specific way, worth
 stating plainly: intervals widen as data gets scarcer, so the smaller
 your dataset, the harder it is for any check to fail. A package that
@@ -533,7 +533,7 @@ so it cannot drift from the model it describes:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/report.html">report</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">12</span><span class="op">]</span>, sep <span class="op">=</span> <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # Model card: y (classification)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Certificate `530ca4af7635`, issued 2026-09-22 21:59:33 UTC, status **valid** (on_fail = `refuse`), attest 0.1.0.</span></span>
+<span><span class="co">#&gt; Certificate `530ca4af7635`, issued 2026-09-22 22:06:56 UTC, status **valid** (on_fail = `refuse`), attest 0.1.0.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; - Engine: `glm`</span></span>
 <span><span class="co">#&gt; - Split: `split_random` -- train 2560 / calib 640 / test 800</span></span>
@@ -764,7 +764,7 @@ issues, as newline-delimited JSON:</p>
 <span><span class="fu"><a href="../reference/ledger_append.html">ledger_append</a></span><span class="op">(</span><span class="va">led</span>, <span class="va">m</span>, note <span class="op">=</span> <span class="st">"nightly build"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/ledger_append.html">ledger_append</a></span><span class="op">(</span><span class="va">led</span>, <span class="va">mw</span>, note <span class="op">=</span> <span class="st">"reweighted regression"</span><span class="op">)</span></span>
 <span><span class="va">led</span></span>
-<span><span class="co">#&gt; &lt;attest_ledger&gt; <span style="color: #0000BB;">/tmp/Rtmp0GmqrY/attest-ledger.ndjson</span> -- 2 entries</span></span></code></pre></div>
+<span><span class="co">#&gt; &lt;attest_ledger&gt; <span style="color: #0000BB;">/tmp/RtmpAqaKrP/attest-ledger.ndjson</span> -- 2 entries</span></span></code></pre></div>
 <p>Each entry carries the previous entry’s digest, so the file is a
 chain rather than a pile. <code><a href="../reference/certificate.html">verify()</a></code> can then check a model
 in hand against the record:</p>

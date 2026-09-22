@@ -70,5 +70,5 @@ Other ledgers:
 ``` r
 led <- attest_ledger(tempfile(fileext = ".ndjson"))
 led
-#> <attest_ledger> /tmp/RtmpgS8bN5/file198ad650f73.ndjson -- 0 entries
+#> <attest_ledger> /tmp/RtmpAMVMHp/file1c2d56d326db.ndjson -- 0 entries
 ```

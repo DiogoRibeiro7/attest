@@ -46,7 +46,7 @@ m <- attest_fit(attest_spec(), y ~ x1 + x2, d, engine_glm(), quiet = TRUE)
 cat(report(m)[1:8], sep = "\n")
 #> # Model card: y (classification)
 #> 
-#> Certificate `b897d5d357d5`, issued 2026-09-22 21:59:29 UTC, status **valid** (on_fail = `refuse`), attest 0.1.0.
+#> Certificate `b897d5d357d5`, issued 2026-09-22 22:06:51 UTC, status **valid** (on_fail = `refuse`), attest 0.1.0.
 #> 
 #> - Engine: `glm`
 #> - Split: `split_random` -- train 640 / calib 160 / test 200
