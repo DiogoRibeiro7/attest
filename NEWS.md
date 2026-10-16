@@ -1,3 +1,10 @@
+# attest (development version)
+
+* Classify invalid outcome types as `attest_validation_error` with a native R
+  `dataexcept` parent condition and permanent, non-retryable metadata.
+  Keep existing messages and certificate refusal semantics unchanged.
+* Add regression coverage for error ancestry and serializable validation causes.
+
 # attest 0.1.0
 
 * Initial release: `attest_spec()`, `attest_fit()`, fail-closed `predict()`,
