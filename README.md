@@ -23,6 +23,17 @@ The contract:
 4. The certificate is bound to the model by hash. Change the model, break the
    seal.
 
+## Structured validation errors
+
+Invalid outcome types produce `attest_validation_error` conditions with their
+original messages. Their `parent` is a native R `dataexcept` validation error
+with permanent, non-retryable failure metadata and a JSON envelope. These input
+errors are separate from certificate refusal: `on_fail = "refuse"`,
+certificate hashes and prediction policy are unchanged.
+
+The `dataexcept` dependency is pinned to a GitHub revision in
+`DESCRIPTION` while both packages are developed outside CRAN.
+
 ## Installation
 
 ```r
