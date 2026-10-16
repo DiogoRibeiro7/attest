@@ -17,7 +17,8 @@ Language: en-GB
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends: R (>= 4.1)
-Imports: cli, digest, jsonlite, rlang, stats, tibble, utils
+Imports: cli, dataexcept, digest, jsonlite, rlang, stats, tibble, utils
+Remotes: DiogoRibeiro7/r-dataexcept@2f756ceec314fd26cbce3baf91add3e4202ae6c7
 Suggests: ranger, parsnip, glmnet, xgboost, xml2, testthat (>= 3.0.0),
     knitr, rmarkdown
 Config/testthat/edition: 3
