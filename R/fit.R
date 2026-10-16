@@ -57,6 +57,18 @@ print.attest_spec <- function(x, ...) {
   invisible(x)
 }
 
+# Validation of task inputs is separate from the certification refusal contract.
+# Keep rlang-compatible error ancestry and preserve the existing messages.
+.attest_invalid_outcome <- function(message) {
+  rlang::abort(
+    message,
+    class = "attest_validation_error",
+    parent = dataexcept::new_dataexcept_error(
+      message, type = "ValidationError", class = "attest_validation_error"
+    )
+  )
+}
+
 infer_task <- function(y) {
   if (is.logical(y)) {
     return("classification")
@@ -68,12 +80,12 @@ infer_task <- function(y) {
     if (nlevels(y) > 2) {
       return("multiclass")
     }
-    rlang::abort("outcome factor has fewer than two levels")
+    .attest_invalid_outcome("outcome factor has fewer than two levels")
   }
   if (is.numeric(y)) {
     return("regression")
   }
-  rlang::abort("outcome must be numeric, logical, or a factor")
+  .attest_invalid_outcome("outcome must be numeric, logical, or a factor")
 }
 
 # Binary and multiclass share every check; they differ only in whether the
