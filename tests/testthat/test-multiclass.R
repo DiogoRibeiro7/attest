@@ -17,6 +17,15 @@ test_that("the task is inferred from the number of outcome levels", {
   expect_equal(attest:::infer_task(factor(letters[1:8])), "multiclass")
   expect_error(attest:::infer_task(factor(rep("a", 5))), "fewer than two")
   expect_error(attest:::infer_task(as.Date("2020-01-01")), "must be numeric")
+  for (value in list(factor(rep("a", 5)), as.Date("2020-01-01"))) {
+    err <- tryCatch(attest:::infer_task(value), error = identity)
+    expect_s3_class(err, "attest_validation_error")
+    expect_s3_class(err, "rlang_error")
+    expect_s3_class(err$parent, "dataexcept_validation_error")
+    expect_identical(dataexcept::condition_failure(err$parent)$kind, "permanent")
+    expect_false(dataexcept::is_retryable(err$parent))
+    expect_true(dataexcept::is_envelope(dataexcept::condition_to_json(err$parent)))
+  }
 })
 
 test_that("a multiclass outcome earns a certificate", {
